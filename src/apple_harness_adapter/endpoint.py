@@ -10,6 +10,10 @@ END = "<|end_message|>"
 EOS = "<|content_model_end_sampling|>"
 
 
+class ContextBudgetExhausted(ValueError):
+    """The full rendered prompt leaves no room for a sampled token."""
+
+
 def parse_completion(text: str, tools: list[dict], *, include_undeclared: bool = False) -> dict:
     message = {"role": "assistant", "content": None}
     allowed = {tool["function"]["name"] for tool in tools}
@@ -81,11 +85,14 @@ def chat_completion(
 
     prompt = policy.prompt_ids(messages, tools, effort)
     requested = request.get("max_completion_tokens") or request.get("max_tokens") or max_output
-    limit = min(requested, max_output, max_context - len(prompt))
-    if limit < 1:
-        raise ValueError(
+    remaining = max_context - len(prompt)
+    if remaining < 1:
+        raise ContextBudgetExhausted(
             f"Prompt has {len(prompt)} tokens and exceeds the {max_context}-token context"
         )
+    limit = min(requested, max_output, remaining)
+    if limit < 1:
+        raise ValueError("The completion limit must allow at least one token")
     turn = policy.sample(prompt, limit, float(request.get("temperature", 1)))
     message = parse_completion(
         policy.decode(turn.completion_token_ids), tools, include_undeclared=include_undeclared

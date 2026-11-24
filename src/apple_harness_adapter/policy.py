@@ -48,6 +48,7 @@ class InklingPolicy:
         if set(parameters) != {f"{self.target}.lora_a", f"{self.target}.lora_b"}:
             raise RuntimeError("Only the two selected LoRA matrices should be trainable")
         self.trainable_count = sum(value.size for value in parameters.values())
+        self.sampling_key = mx.random.state[0]
 
     def prompt_ids(self, messages: list[dict], tools: list[dict] | None, effort: str) -> list[int]:
         rendered = self.tokenizer.apply_chat_template(
@@ -66,7 +67,8 @@ class InklingPolicy:
             )
 
         def sampler(logprobs):
-            return mx.random.categorical(logprobs / temperature)
+            self.sampling_key, key = mx.random.split(self.sampling_key)
+            return mx.random.categorical(logprobs / temperature, key=key)
 
         tokens, logprobs = [], []
         stream = generate_step(

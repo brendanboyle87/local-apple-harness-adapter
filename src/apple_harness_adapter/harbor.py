@@ -19,7 +19,7 @@ from openenv.harbor.install_fixes import InterceptPi
 from openenv.harbor.rollout import run_rollout
 from safeagents.guard import Config
 
-from .endpoint import MODEL_NAME, chat_completion
+from .endpoint import MODEL_NAME, ContextBudgetExhausted, chat_completion
 from .safe_agents import SafetyAudit, TrainingScanner
 from .trace import Rollout, Turn
 
@@ -205,6 +205,10 @@ async def collect_harbor(policy, args, trials_dir, save_attempt, task) -> list[R
                 max_output=args.max_output,
                 effort=args.effort,
                 include_undeclared=args.safe_agents == "enforce",
+            )
+        except ContextBudgetExhausted as exc:
+            return httpx.Response(
+                400, json={"error": {"code": "context_length_exceeded", "message": str(exc)}}
             )
         except (ValueError, KeyError, TypeError) as exc:
             return httpx.Response(400, json={"error": {"message": str(exc)}})

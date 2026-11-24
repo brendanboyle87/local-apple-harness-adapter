@@ -165,7 +165,8 @@ def test_failed_guard_invalidates_the_attempt_even_if_the_verifier_passes(monkey
 
 
 @pytest.mark.skipif(os.getenv("APPLE_HARNESS_DOCKER_TEST") != "1", reason="requires Docker")
-def test_real_pi_executes_allowed_call_and_reconciles_blocked_call(tmp_path):
+@pytest.mark.parametrize("context_stop", [False, True])
+def test_real_pi_executes_allowed_call_and_reconciles_blocked_call(tmp_path, context_stop):
     from apple_harness_adapter.harbor import collect_harbor
 
     source = Path(__file__).resolve().parents[1] / "examples/harbor/write-answer"
@@ -210,7 +211,7 @@ def test_real_pi_executes_allowed_call_and_reconciles_blocked_call(tmp_path):
         reward_key="",
         max_turns=3,
         max_output=128,
-        max_context=4096,
+        max_context=6 if context_stop else 4096,
         effort="none",
         temperature=0.8,
     )
@@ -227,6 +228,8 @@ def test_real_pi_executes_allowed_call_and_reconciles_blocked_call(tmp_path):
 
     (record,) = records
     assert record["atif"] == "match" and record["ok"]
+    assert record["budget_stop_count"] == int(context_stop)
+    assert len(rollout.turns) == (1 if context_stop else 2)
     assert record["reward"] == 1.0 and record["effective_reward"] == 0
     assert rollout.tool_calls == 1 and rollout.blocked_tool_calls == 1
     assert rollout.turns[0].completion_token_ids == (31, 32)

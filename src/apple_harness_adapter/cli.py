@@ -8,6 +8,7 @@ import tomllib
 from dataclasses import asdict
 from math import isfinite
 from pathlib import Path
+from time import monotonic
 
 from .trace import Rollout
 
@@ -79,6 +80,10 @@ def toy_step(policy, args) -> dict:
 
 
 def harbor_run(policy, args) -> dict:
+    import mlx.core as mx
+    from harbor.publisher.packager import Packager
+
+    from .checkpoint import CHECKPOINT_VERSION, commit_group, lock_run, prepare_run
     from .grpo import GRPO
     from .harbor import collect_harbor
 
@@ -88,44 +93,52 @@ def harbor_run(policy, args) -> dict:
         args.max_logprob_drift,
         gradient_checkpointing=args.gradient_checkpointing,
     )
-    args.output.mkdir(parents=True, exist_ok=False)
-    write_json(
-        args.output / "config.json",
-        vars(args)
-        | {
-            "task": [str(path) for path in args.task],
-            "output": str(args.output),
-            "adapter": str(args.adapter) if args.adapter else None,
-        },
-    )
-    metrics = []
-    for step in range(args.steps):
-        task = args.task[step % len(args.task)]
-        directory = args.output / f"group-{step + 1:04d}"
-        directory.mkdir()
+    trainer.optimizer.init(policy.model.trainable_parameters())
+    config = {key: value for key, value in vars(args).items() if key != "resume"} | {
+        "task": [str(path.resolve()) for path in args.task],
+        "task_digests": [Packager.compute_content_hash(path)[0] for path in args.task],
+        "output": str(args.output.resolve()),
+        "adapter": str(args.adapter.resolve()) if args.adapter else None,
+        "checkpoint_version": CHECKPOINT_VERSION,
+    }
+    with lock_run(args.output, args.resume):
+        metrics = prepare_run(args.output, config, args.resume, policy, trainer.optimizer)
+        for step in range(len(metrics), args.steps):
+            task = args.task[step % len(args.task)]
+            directory = args.output / f"group-{step + 1:04d}"
+            directory.mkdir()
 
-        def save_attempt(index, result):
-            write_json(directory / f"attempt-{index + 1:02d}.json", result)
+            def save_attempt(index, result):
+                write_json(directory / f"attempt-{index + 1:02d}.json", result)
 
-        rollouts = asyncio.run(
-            collect_harbor(policy, args, directory / "trials", save_attempt, task)
-        )
-        update = {"updated": False}
-        if not args.collect_only:
-            update = trainer.update(rollouts)
-            if update["updated"]:
-                policy.save(directory / "adapter")
-        result = update | {
-            "task": task.name,
-            "correctness": [rollout.correctness for rollout in rollouts],
-            "tool_calls": [rollout.tool_calls for rollout in rollouts],
-            "safe_agents": args.safe_agents,
-            "blocked_tool_calls": [rollout.blocked_tool_calls for rollout in rollouts],
-            "effective_rewards": [rollout.reward for rollout in rollouts],
-            "turns": [len(rollout.turns) for rollout in rollouts],
-        }
-        write_json(directory / "metrics.json", result)
-        metrics.append(result)
+            start = monotonic()
+            mx.reset_peak_memory()
+            rollouts = asyncio.run(
+                collect_harbor(policy, args, directory / "trials", save_attempt, task)
+            )
+            collection_seconds = monotonic() - start
+            collection_peak_gib = mx.get_peak_memory() / 2**30
+            update = {"updated": False}
+            if not args.collect_only:
+                start = monotonic()
+                mx.reset_peak_memory()
+                update = trainer.update(rollouts) | {
+                    "optimization_seconds": round(monotonic() - start, 2),
+                    "optimization_peak_mlx_gib": round(mx.get_peak_memory() / 2**30, 3),
+                }
+            result = update | {
+                "task": task.name,
+                "correctness": [rollout.correctness for rollout in rollouts],
+                "tool_calls": [rollout.tool_calls for rollout in rollouts],
+                "safe_agents": args.safe_agents,
+                "blocked_tool_calls": [rollout.blocked_tool_calls for rollout in rollouts],
+                "effective_rewards": [rollout.reward for rollout in rollouts],
+                "turns": [len(rollout.turns) for rollout in rollouts],
+                "collection_seconds": round(collection_seconds, 2),
+                "collection_peak_mlx_gib": round(collection_peak_gib, 3),
+            }
+            commit_group(directory, result, policy, trainer.optimizer)
+            metrics.append(result)
     return {"groups": metrics}
 
 
@@ -155,6 +168,9 @@ def main() -> None:
     training_options(harbor)
     harbor.add_argument("--task", type=Path, action="append", required=True)
     harbor.add_argument("--steps", type=int, default=1)
+    harbor.add_argument(
+        "--resume", action="store_true", help="continue a run in an existing output directory"
+    )
     harbor.add_argument("--collect-only", action="store_true")
     harbor.add_argument(
         "--gradient-checkpointing",

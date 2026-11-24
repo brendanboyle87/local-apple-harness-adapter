@@ -41,6 +41,10 @@ Each attempt file stores the raw verifier `reward`, the `effective_reward`, and 
 
 Each `group-*` directory contains the OpenEnv attempt records, Harbor trial logs, and `metrics.json`. A group with varying rewards produces an `adapter/` directory if the log-probability and gradient checks pass. Equal rewards skip the update. Each attempt uses a fresh container, with weights fixed until the full group is scored. Run directories and model files are excluded from Git.
 
+To continue an interrupted Harbor run, repeat the original command and add `--resume`. Use the same output path, task content, and options. You can raise `--steps` to extend the target total number of groups. The runner restores the adapter, Adam state, and sampling key at the last complete group. It archives an unfinished group under `interrupted/` and retries it from that checkpoint.
+
+The runner writes `training.safetensors` before committing a group's `metrics.json`. Keep both files and any saved `adapter/` directories when backing up the run. The `--adapter` option starts a new run from saved weights with fresh optimizer state. Groups report separate collection and optimization timing and peak MLX memory.
+
 The trainer compares captured behavior log probabilities to its batched scoring pass. When a turn falls outside `--max-logprob-drift`, it verifies the recorded values by replaying the sampler's cached prefill and decode shapes. Replay runs outside gradient tracking and must meet the same tolerance. The single on-policy update uses detached batched scores as its baseline, the usual one-iteration GRPO case. The two drift measurements are logged separately. Current defaults target short, text-only tasks. Benchmark-scale results and a held-out improvement measurement are still pending. [TRL's one-iteration GRPO baseline](https://github.com/huggingface/trl/blob/main/trl/trainer/grpo_trainer.py)
 
 Pass `harbor --gradient-checkpointing` to recompute Inkling decoder activations during the backward pass. This reduces peak optimizer memory at the cost of extra computation. Profile the longest captured turns before raising the rollout context budget.
