@@ -1,5 +1,6 @@
 """Sequential, on-policy GRPO with a clipped token-level objective."""
 
+from contextlib import nullcontext
 from math import isfinite
 
 import mlx.core as mx
@@ -7,7 +8,7 @@ import mlx.nn as nn
 import mlx.optimizers as optim
 from mlx.utils import tree_flatten, tree_map
 
-from .policy import InklingPolicy
+from .policy import InklingPolicy, checkpoint_decoder_layers
 from .trace import Rollout, Turn, group_advantages
 
 
@@ -18,7 +19,14 @@ def gradient_norm(gradients) -> float:
 
 
 class GRPO:
-    def __init__(self, policy: InklingPolicy, learning_rate: float, max_logprob_drift: float):
+    def __init__(
+        self,
+        policy: InklingPolicy,
+        learning_rate: float,
+        max_logprob_drift: float,
+        *,
+        gradient_checkpointing: bool = False,
+    ):
         if not isfinite(learning_rate) or learning_rate <= 0:
             raise ValueError("Learning rate must be finite and positive")
         if not isfinite(max_logprob_drift) or max_logprob_drift <= 0:
@@ -26,6 +34,9 @@ class GRPO:
         self.policy = policy
         self.optimizer = optim.Adam(learning_rate=learning_rate)
         self.max_logprob_drift = max_logprob_drift
+        self.gradient_checkpointing = (
+            checkpoint_decoder_layers if gradient_checkpointing else nullcontext
+        )
         self.loss_and_grad = nn.value_and_grad(policy.model, self._turn_loss)
 
     def _turn_loss(self, model: nn.Module, turn: Turn, advantage: float):
@@ -57,7 +68,8 @@ class GRPO:
             count = sum(len(turn.completion_token_ids) for turn in rollout.turns)
             weight = 1 / (len(rollouts) * count)
             for turn in rollout.turns:
-                (loss, drift), grad = self.loss_and_grad(self.policy.model, turn, advantage)
+                with self.gradient_checkpointing():
+                    (loss, drift), grad = self.loss_and_grad(self.policy.model, turn, advantage)
                 drift = drift.item()
                 max_batched_drift = max(max_batched_drift, drift)
                 if isfinite(drift) and drift > self.max_logprob_drift:

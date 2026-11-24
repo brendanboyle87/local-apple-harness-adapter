@@ -1,11 +1,14 @@
 """Text-only Inkling 2 Mini policy backed by MLX-LM."""
 
 import json
+from contextlib import contextmanager
+from functools import partial
 from math import isfinite
 from pathlib import Path
 
 import mlx.core as mx
 import mlx.nn as nn
+from mlx.nn.utils import checkpoint
 from mlx.utils import tree_flatten
 from mlx_lm import load
 from mlx_lm.generate import generate_step
@@ -139,6 +142,27 @@ class InklingPolicy:
             raise ValueError("Adapter weights do not match the selected LoRA matrices")
         self.model.load_weights(list(weights.items()), strict=False)
         mx.eval(self.model.trainable_parameters())
+
+
+@contextmanager
+def checkpoint_decoder_layers():
+    """Recompute each decoder visit during backward, including its LoRA parameters."""
+    decoder = layers.DecoderLayer
+    forward = decoder.__call__
+
+    def checkpointed(layer, *args, **kwargs):
+        bound_forward = partial(forward, layer)
+        if kwargs.get("cache") is not None:
+            return bound_forward(*args, **kwargs)
+        return checkpoint(layer, bound_forward)(*args, **kwargs)
+
+    # Inkling's sliding and full attention layers share this method. Keep the
+    # patch scoped to gradient evaluation so generation uses the normal path.
+    decoder.__call__ = checkpointed
+    try:
+        yield
+    finally:
+        decoder.__call__ = forward
 
 
 def differentiable_router(router, hidden_states):

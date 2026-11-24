@@ -43,6 +43,8 @@ Each `group-*` directory contains the OpenEnv attempt records, Harbor trial logs
 
 The trainer compares captured behavior log probabilities to its batched scoring pass. When a turn falls outside `--max-logprob-drift`, it verifies the recorded values by replaying the sampler's cached prefill and decode shapes. Replay runs outside gradient tracking and must meet the same tolerance. The single on-policy update uses detached batched scores as its baseline, the usual one-iteration GRPO case. The two drift measurements are logged separately. Current defaults target short, text-only tasks. Benchmark-scale results and a held-out improvement measurement are still pending. [TRL's one-iteration GRPO baseline](https://github.com/huggingface/trl/blob/main/trl/trainer/grpo_trainer.py)
 
+Pass `harbor --gradient-checkpointing` to recompute Inkling decoder activations during the backward pass. This reduces peak optimizer memory at the cost of extra computation. Profile the longest captured turns before raising the rollout context budget.
+
 ## Local validation
 
 On an M4 Max with 128 GB unified memory, `smoke` backpropagated through 43,008 LoRA parameters in the repeated decoder block at a peak of 16.7 GiB of MLX memory. `toy-step` updated those parameters from eight live samples. The bundled Pi fixture also passed its Harbor verifier with a four-turn trace that OpenEnv reconciled against Pi's session record.
@@ -50,6 +52,8 @@ On an M4 Max with 128 GB unified memory, `smoke` backpropagated through 43,008 L
 The eight-attempt Harbor group captured 1,352 sampled tokens across 23 turns. All eight passed and used one to three tool calls, so the efficiency term provided the reward variation. After the probability verification change, the captured group produced a nonzero LoRA update from the same initial policy. The rollouts took about 145 seconds and the optimizer pass took 171 seconds, with a peak of 71.6 GiB of MLX memory during optimization.
 
 A repeat with SafeAgents enforcement produced a LoRA update from eight passing attempts and 15 allowed tool calls. The Docker test also uses a scripted completion to verify that Pi can make a legitimate workspace write in a response that contains a blocked dummy reward-file write. The raw verifier score is 1, the training reward is 0, and OpenEnv reconciles the original sampled tokens with Pi's trace.
+
+Gradient checkpointing produced a LoRA update from four fresh fixture attempts at 25.3 GiB of peak MLX memory. A backward pass over a recorded 4,020-token Termgrade turn reached 43.3 GiB. Cached sampler replay reproduced the recorded log probabilities for that turn. [Pinned Termgrade dataset](https://huggingface.co/datasets/ai-and/termgrade-environments/tree/f27ea56e45c6f09039f6eaa2e7daa5773a70ccee)
 
 The base checkpoint and the saved adapter each passed one held-out smoke rollout with one tool call using Harbor's upstream `hello-world-multiple-solutions` instruction and verifier. Its image was replaced with the offline Pi fixture image and the verifier ran in the same container. [Upstream Harbor task](https://github.com/harbor-framework/harbor/tree/6f5d3df26b2324d7ea5b09d4254cc7bc3c8b1fa6/examples/tasks/hello-world-multiple-solutions)
 

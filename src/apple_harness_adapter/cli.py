@@ -82,7 +82,12 @@ def harbor_run(policy, args) -> dict:
     from .grpo import GRPO
     from .harbor import collect_harbor
 
-    trainer = GRPO(policy, args.learning_rate, args.max_logprob_drift)
+    trainer = GRPO(
+        policy,
+        args.learning_rate,
+        args.max_logprob_drift,
+        gradient_checkpointing=args.gradient_checkpointing,
+    )
     args.output.mkdir(parents=True, exist_ok=False)
     write_json(
         args.output / "config.json",
@@ -151,6 +156,11 @@ def main() -> None:
     harbor.add_argument("--task", type=Path, action="append", required=True)
     harbor.add_argument("--steps", type=int, default=1)
     harbor.add_argument("--collect-only", action="store_true")
+    harbor.add_argument(
+        "--gradient-checkpointing",
+        action="store_true",
+        help="recompute decoder activations during the optimizer pass to reduce peak memory",
+    )
     harbor.add_argument("--adapter", type=Path, help="initialize from a saved adapter")
     harbor.add_argument("--reward-key", default="")
     harbor.add_argument(
