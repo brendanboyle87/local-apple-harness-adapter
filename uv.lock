@@ -136,6 +136,19 @@ wheels = [
 ]
 
 [[package]]
+name = "atif-scan"
+version = "0.8.24"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "rich" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/08/ef/5e5e32219c318aebad3d1896520f3772ebcc16cac17e7fa36e7918f1ee44/atif_scan-0.8.24.tar.gz", hash = "sha256:50182d21b452dd0a9f8fe9b86d8f587311b8da39ddcf3f7ab7ba085c7554926b", size = 1488437, upload-time = "2026-11-19T08:24:02.433Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/83/9d/9f0414caf7a469ca2706d8febe39c46f7b620ef3ace5c7b56390a1cb9b13/atif_scan-0.8.24-py3-none-any.whl", hash = "sha256:354b831d2238e5256d0b2ce3e53e89e3c79ee0b11e656b5867f625c50040c809", size = 733034, upload-time = "2026-11-19T08:24:00.991Z" },
+]
+
+[[package]]
 name = "attrs"
 version = "26.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1224,8 +1237,10 @@ apple = [
     { name = "mlx-lm" },
 ]
 harbor = [
+    { name = "atif-scan" },
     { name = "harbor" },
     { name = "openenv" },
+    { name = "safeagents" },
 ]
 
 [package.dev-dependencies]
@@ -1236,10 +1251,12 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "atif-scan", marker = "extra == 'harbor'", specifier = "==0.8.24" },
     { name = "harbor", marker = "extra == 'harbor'", specifier = "==0.25.0" },
     { name = "mlx", marker = "extra == 'apple'", specifier = ">=0.32.3,<0.33" },
     { name = "mlx-lm", marker = "extra == 'apple'", git = "https://github.com/ml-explore/mlx-lm.git?rev=e2b5bbd3bd9d186dea895e60802aa765e70b9d93" },
     { name = "openenv", marker = "extra == 'harbor'", git = "https://github.com/openenv/OpenEnv.git?rev=3659dc73eb8114724209e642eee749cd94348ce3" },
+    { name = "safeagents", marker = "extra == 'harbor'", git = "https://github.com/huggingface/safeagents.git?rev=dcf38e0a911d6e6a53966d46ecf1d9d6b86e3c01" },
 ]
 provides-extras = ["apple", "harbor"]
 
@@ -2211,6 +2228,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/49/c5/0a5ce655109cb96b8dfad36908a4e108d15f5dc2eff8fbc3146c4312e704/s3transfer-0.19.3.tar.gz", hash = "sha256:8326acc3d056d7f7b8a37110c7d2aea41f67e83f6ae79cd3b5fbcca34c726406", size = 166087, upload-time = "2026-10-19T19:19:49.751Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e2/a4/88f9e10498759121060b8050a1554753dfc04df39bbbcc7aad9ecc8d9440/s3transfer-0.19.3-py3-none-any.whl", hash = "sha256:24eb7535804306355e31c952a90022bf5b2f9d760f9a11062c7493a217c08553", size = 90252, upload-time = "2026-10-19T19:19:48.309Z" },
+]
+
+[[package]]
+name = "safeagents"
+version = "0.0.1"
+source = { git = "https://github.com/huggingface/safeagents.git?rev=dcf38e0a911d6e6a53966d46ecf1d9d6b86e3c01#dcf38e0a911d6e6a53966d46ecf1d9d6b86e3c01" }
+dependencies = [
+    { name = "atif-scan" },
+    { name = "httpx" },
+    { name = "huggingface-hub" },
+    { name = "rich" },
+    { name = "starlette" },
+    { name = "uvicorn" },
 ]
 
 [[package]]

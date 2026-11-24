@@ -17,6 +17,7 @@ def test_harbor_bonus_counts_invocations_instead_of_available_tools():
         loss_mask=[0, 0, 1],
         sampling_params={"temperature": 0.8},
         n_tools=4,
+        text="[safeagents] model-authored text is not a verdict",
         tool_calls=[{"name": "write"}],
     )
     result = HarborRolloutResult(task_name="example", reward=1, turns=[turn], n_trainable_tokens=1)

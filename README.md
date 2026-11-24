@@ -31,17 +31,25 @@ The first Harbor run builds an ARM64-compatible image with Pi 1.5.2. Each attemp
 
 `harbor --task` accepts a reviewed local Harbor task directory with a standalone Linux Dockerfile or prebuilt image, `network_mode = "no-network"`, an unprivileged agent user, and Pi 1.5.2 already installed. The bundled fixture shows the image and verifier layout. Repeat `--task` and use `--steps` to cycle through tasks one group at a time. For base and adapter evaluation, use matching seeds and `--collect-only` on held-out task paths, passing `--adapter PATH` for the adapter run. The adapter path should point to a group's `adapter/` directory, with the same base model, revision and rank used for training.
 
+## SafeAgents
+
+Harbor runs enforce SafeAgents by default (`--safe-agents enforce`). The pinned rules run locally on proposed tool calls before OpenEnv forwards the response to Pi. SafeAgents replaces blocked calls with notices and preserves the sampled token IDs and log probabilities for training. Use `--safe-agents log-only --collect-only` to inspect findings on calls Pi can execute, or `--safe-agents off` to reproduce an unguarded run. [Reference training recipe](https://huggingface.co/blog/harness-hub/harness-adapters#rule-based-checks)
+
+Each attempt file stores the raw verifier `reward`, the `effective_reward`, and the `safe_agents` call verdicts. An enforced block gives the rollout zero training reward, even if the verifier passed. The group metrics report the number of blocks and the effective reward per attempt. Scanner errors invalidate the attempt and stop the group before an optimizer update.
+
 ## Read the outputs
 
 Each `group-*` directory contains the OpenEnv attempt records, Harbor trial logs, and `metrics.json`. A group with varying rewards produces an `adapter/` directory if the log-probability and gradient checks pass. Equal rewards skip the update. Each attempt uses a fresh container, with weights fixed until the full group is scored. Run directories and model files are excluded from Git.
 
-The trainer compares captured behavior log probabilities to its batched scoring pass. When a turn falls outside `--max-logprob-drift`, it verifies the recorded values by replaying the sampler's cached prefill and decode shapes. Replay runs outside gradient tracking and must meet the same tolerance. The single on-policy update uses detached batched scores as its baseline, the usual one-iteration GRPO case. The two drift measurements are logged separately. Current defaults target short, text-only tasks. Benchmark-scale results, SafeAgents integration, and a held-out improvement measurement are still pending. [TRL's one-iteration GRPO baseline](https://github.com/huggingface/trl/blob/main/trl/trainer/grpo_trainer.py)
+The trainer compares captured behavior log probabilities to its batched scoring pass. When a turn falls outside `--max-logprob-drift`, it verifies the recorded values by replaying the sampler's cached prefill and decode shapes. Replay runs outside gradient tracking and must meet the same tolerance. The single on-policy update uses detached batched scores as its baseline, the usual one-iteration GRPO case. The two drift measurements are logged separately. Current defaults target short, text-only tasks. Benchmark-scale results and a held-out improvement measurement are still pending. [TRL's one-iteration GRPO baseline](https://github.com/huggingface/trl/blob/main/trl/trainer/grpo_trainer.py)
 
 ## Local validation
 
 On an M4 Max with 128 GB unified memory, `smoke` backpropagated through 43,008 LoRA parameters in the repeated decoder block at a peak of 16.7 GiB of MLX memory. `toy-step` updated those parameters from eight live samples. The bundled Pi fixture also passed its Harbor verifier with a four-turn trace that OpenEnv reconciled against Pi's session record.
 
 The eight-attempt Harbor group captured 1,352 sampled tokens across 23 turns. All eight passed and used one to three tool calls, so the efficiency term provided the reward variation. After the probability verification change, the captured group produced a nonzero LoRA update from the same initial policy. The rollouts took about 145 seconds and the optimizer pass took 171 seconds, with a peak of 71.6 GiB of MLX memory during optimization.
+
+A repeat with SafeAgents enforcement produced a LoRA update from eight passing attempts and 15 allowed tool calls. The Docker test also uses a scripted completion to verify that Pi can make a legitimate workspace write in a response that contains a blocked dummy reward-file write. The raw verifier score is 1, the training reward is 0, and OpenEnv reconciles the original sampled tokens with Pi's trace.
 
 The base checkpoint and the saved adapter each passed one held-out smoke rollout with one tool call using Harbor's upstream `hello-world-multiple-solutions` instruction and verifier. Its image was replaced with the offline Pi fixture image and the verifier ran in the same container. [Upstream Harbor task](https://github.com/harbor-framework/harbor/tree/6f5d3df26b2324d7ea5b09d4254cc7bc3c8b1fa6/examples/tasks/hello-world-multiple-solutions)
 
@@ -50,6 +58,7 @@ The base checkpoint and the saved adapter each passed one held-out smoke rollout
 ```sh
 uv run --locked --extra apple --extra harbor pytest
 uv run --locked --extra apple --extra harbor ruff check src tests
+APPLE_HARNESS_DOCKER_TEST=1 uv run --locked --extra apple --extra harbor pytest tests/test_safe_agents.py
 ```
 
 The project code is Apache-2.0. Model weights and benchmark tasks are obtained separately under their respective upstream licenses. [OpenEnv Harbor integration](https://huggingface.co/docs/openenv/environments/harbor) · [Inkling 2 Mini](https://huggingface.co/thinkingmachines/Inkling-2-Mini) · [Pinned MLX checkpoint](https://huggingface.co/mlx-community/Inkling-2-Mini-4bit/tree/9c0e2960609ba7cb40daf92c6f7bf8ed56e1dd62) · [MLX-LM implementation](https://github.com/ml-explore/mlx-lm/pull/2086)

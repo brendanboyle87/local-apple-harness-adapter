@@ -114,6 +114,9 @@ def harbor_run(policy, args) -> dict:
             "task": task.name,
             "correctness": [rollout.correctness for rollout in rollouts],
             "tool_calls": [rollout.tool_calls for rollout in rollouts],
+            "safe_agents": args.safe_agents,
+            "blocked_tool_calls": [rollout.blocked_tool_calls for rollout in rollouts],
+            "effective_rewards": [rollout.reward for rollout in rollouts],
             "turns": [len(rollout.turns) for rollout in rollouts],
         }
         write_json(directory / "metrics.json", result)
@@ -150,6 +153,12 @@ def main() -> None:
     harbor.add_argument("--collect-only", action="store_true")
     harbor.add_argument("--adapter", type=Path, help="initialize from a saved adapter")
     harbor.add_argument("--reward-key", default="")
+    harbor.add_argument(
+        "--safe-agents",
+        choices=("enforce", "log-only", "off"),
+        default="enforce",
+        help="review Pi tool calls with SafeAgents (default: enforce)",
+    )
     harbor.add_argument("--max-turns", type=int, default=4)
     harbor.add_argument("--max-output", type=int, default=128)
     harbor.add_argument("--max-context", type=int, default=4096)

@@ -39,13 +39,16 @@ class Rollout:
     turns: tuple[Turn, ...]
     correctness: float
     tool_calls: int
+    blocked_tool_calls: int = 0
 
     @property
     def reward(self) -> float:
         if not isfinite(self.correctness) or not 0 <= self.correctness <= 1:
             raise ValueError("Verifier reward must be a finite score in [0, 1]")
-        if self.tool_calls < 0:
-            raise ValueError("Tool-call count cannot be negative")
+        if self.tool_calls < 0 or self.blocked_tool_calls < 0:
+            raise ValueError("Tool-call counts cannot be negative")
+        if self.blocked_tool_calls:
+            return 0.0
         efficiency = max(0.0, 1.0 - self.tool_calls / 15)
         return self.correctness + (0.1 * efficiency if self.correctness == 1 else 0)
 

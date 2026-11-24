@@ -10,7 +10,7 @@ END = "<|end_message|>"
 EOS = "<|content_model_end_sampling|>"
 
 
-def parse_completion(text: str, tools: list[dict]) -> dict:
+def parse_completion(text: str, tools: list[dict], *, include_undeclared: bool = False) -> dict:
     message = {"role": "assistant", "content": None}
     allowed = {tool["function"]["name"] for tool in tools}
     frames = list(FRAME.finditer(text))
@@ -25,7 +25,7 @@ def parse_completion(text: str, tools: list[dict]) -> dict:
             message["content"] = (message["content"] or "") + content
         elif kind == "thinking":
             message["reasoning_content"] = message.get("reasoning_content", "") + content
-        elif delimiter and name in allowed:
+        elif delimiter and (include_undeclared or name in allowed):
             try:
                 invocation = json.loads(content)
             except json.JSONDecodeError:
@@ -48,7 +48,13 @@ def parse_completion(text: str, tools: list[dict]) -> dict:
 
 
 def chat_completion(
-    policy, request: dict, *, max_context: int, max_output: int, effort: str
+    policy,
+    request: dict,
+    *,
+    max_context: int,
+    max_output: int,
+    effort: str,
+    include_undeclared: bool = False,
 ) -> dict:
     if request.get("stream") or request.get("n", 1) != 1:
         raise ValueError("The capture endpoint requires one nonstreaming choice")
@@ -81,7 +87,9 @@ def chat_completion(
             f"Prompt has {len(prompt)} tokens and exceeds the {max_context}-token context"
         )
     turn = policy.sample(prompt, limit, float(request.get("temperature", 1)))
-    message = parse_completion(policy.decode(turn.completion_token_ids), tools)
+    message = parse_completion(
+        policy.decode(turn.completion_token_ids), tools, include_undeclared=include_undeclared
+    )
     finish = "length" if len(turn.completion_token_ids) == limit else "stop"
     if turn.completion_token_ids[-1] in policy.tokenizer.eos_token_ids:
         finish = "stop"

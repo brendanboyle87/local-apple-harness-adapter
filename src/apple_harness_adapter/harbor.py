@@ -5,6 +5,7 @@ import json
 import secrets
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import asdict
 from importlib.resources import files
 
 import httpx
@@ -16,8 +17,10 @@ from harbor.models.task.config import NetworkMode
 from openenv.core.harness.capture.server import create_app
 from openenv.harbor.install_fixes import InterceptPi
 from openenv.harbor.rollout import run_rollout
+from safeagents.guard import Config
 
 from .endpoint import MODEL_NAME, chat_completion
+from .safe_agents import SafetyAudit, TrainingScanner
 from .trace import Rollout, Turn
 
 PI_VERSION = "1.5.2"
@@ -151,7 +154,7 @@ class OfflinePi(InterceptPi):
             await process.stdin.drain()
 
 
-def training_rollout(result) -> Rollout:
+def training_rollout(result, blocked_tool_calls: int = 0) -> Rollout:
     if not result.ok or result.reward is None or not result.trainable:
         raise RuntimeError(
             f"Harbor rollout {result.trial_name} failed: {result.error or result.findings}"
@@ -179,23 +182,38 @@ def training_rollout(result) -> Rollout:
         sum(
             len(row.tool_calls) for row in result.turns if not row.discarded and row.role == "agent"
         ),
+        blocked_tool_calls,
     )
 
 
 async def collect_harbor(policy, args, trials_dir, save_attempt, task) -> list[Rollout]:
-    def inference_request(request):
+    safety_attempt = ContextVar("safety_attempt")
+    config = Config(scanner=TrainingScanner()) if args.safe_agents != "off" else None
+
+    async def inference_request(request):
         if request.method != "POST" or request.url.path != "/v1/chat/completions":
             return httpx.Response(404)
+        audit = safety_attempt.get()
+        if audit.error:
+            return httpx.Response(500, json={"error": {"message": "SafeAgents review failed"}})
         try:
+            body = json.loads(request.content)
             payload = chat_completion(
                 policy,
-                json.loads(request.content),
+                body,
                 max_context=args.max_context,
                 max_output=args.max_output,
                 effort=args.effort,
+                include_undeclared=args.safe_agents == "enforce",
             )
         except (ValueError, KeyError, TypeError) as exc:
             return httpx.Response(400, json={"error": {"message": str(exc)}})
+        if config is not None:
+            try:
+                await audit.review_response(body, payload, config)
+            except Exception as exc:
+                audit.error = f"{type(exc).__name__}: {exc}"
+                return httpx.Response(500, json={"error": {"message": "SafeAgents review failed"}})
         return httpx.Response(200, json=payload)
 
     with offline_docker():
@@ -221,22 +239,40 @@ async def collect_harbor(policy, args, trials_dir, save_attempt, task) -> list[R
             try:
                 rollouts = []
                 for attempt in range(args.attempts):
-                    result = await run_rollout(
-                        task_dir=task,
-                        harness="apple_harness_adapter.harbor:OfflinePi",
-                        sandbox="docker",
-                        registry=capture.state.registry,
-                        intercept_url=PI_RELAY_URL,
-                        model=MODEL_NAME,
-                        trials_dir=trials_dir,
-                        reward_key=args.reward_key,
-                        purpose="train",
-                        inference=capture.state.inference,
-                        sampling={"temperature": args.temperature},
-                        agent_step_limit=args.max_turns,
-                    )
-                    save_attempt(attempt, result.model_dump(mode="json"))
-                    rollouts.append(training_rollout(result))
+                    audit = SafetyAudit(args.safe_agents)
+                    attempt_token = safety_attempt.set(audit)
+                    try:
+                        result = await run_rollout(
+                            task_dir=task,
+                            harness="apple_harness_adapter.harbor:OfflinePi",
+                            sandbox="docker",
+                            registry=capture.state.registry,
+                            intercept_url=PI_RELAY_URL,
+                            model=MODEL_NAME,
+                            trials_dir=trials_dir,
+                            reward_key=args.reward_key,
+                            purpose="train",
+                            inference=capture.state.inference,
+                            sampling={"temperature": args.temperature},
+                            agent_step_limit=args.max_turns,
+                        )
+                    finally:
+                        safety_attempt.reset(attempt_token)
+                    record = result.model_dump(mode="json") | {
+                        "safe_agents": asdict(audit),
+                        "effective_reward": None,
+                    }
+                    try:
+                        if audit.error:
+                            record["ok"] = False
+                            raise RuntimeError(
+                                f"SafeAgents failed in {result.trial_name}: {audit.error}"
+                            )
+                        rollout = training_rollout(result, audit.blocked_tool_calls)
+                        record["effective_reward"] = rollout.reward
+                        rollouts.append(rollout)
+                    finally:
+                        save_attempt(attempt, record)
                 return rollouts
             finally:
                 CAPTURE_CLIENT.reset(reset)

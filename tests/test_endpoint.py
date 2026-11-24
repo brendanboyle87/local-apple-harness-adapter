@@ -17,6 +17,8 @@ def test_inkling_message_extraction_handles_complete_and_truncated_calls():
     assert json.loads(complete["tool_calls"][0]["function"]["arguments"]) == {"path": "a"}
     assert "tool_calls" not in parse_completion(THINK + CALL, TOOLS)
     assert "tool_calls" not in parse_completion(CALL + "<|end_message|>", [])
+    undeclared = parse_completion(CALL + "<|end_message|>", [], include_undeclared=True)
+    assert undeclared["tool_calls"][0]["function"]["name"] == "write"
 
 
 def test_chat_completion_pairs_sampler_tokens_and_logprobs():

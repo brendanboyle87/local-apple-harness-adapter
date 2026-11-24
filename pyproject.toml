@@ -14,7 +14,7 @@ dependencies = []
 
 [project.optional-dependencies]
 apple = ["mlx>=0.32.3,<0.33", "mlx-lm"]
-harbor = ["harbor==0.25.0", "openenv"]
+harbor = ["harbor==0.25.0", "openenv", "safeagents", "atif-scan==0.8.24"]
 
 [project.scripts]
 apple-harness = "apple_harness_adapter.cli:main"
@@ -25,6 +25,7 @@ dev = ["pytest>=8,<10", "ruff>=0.15,<0.16"]
 [tool.uv.sources]
 mlx-lm = { git = "https://github.com/ml-explore/mlx-lm.git", rev = "e2b5bbd3bd9d186dea895e60802aa765e70b9d93" }
 openenv = { git = "https://github.com/openenv/OpenEnv.git", rev = "3659dc73eb8114724209e642eee749cd94348ce3" }
+safeagents = { git = "https://github.com/huggingface/safeagents.git", rev = "dcf38e0a911d6e6a53966d46ecf1d9d6b86e3c01" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/apple_harness_adapter"]
