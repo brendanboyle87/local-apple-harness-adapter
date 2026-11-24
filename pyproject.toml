@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "local-apple-harness-adapter"
+version = "0.1.0"
+description = "Local online reinforcement learning for harness adapters on Apple Silicon"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = "Apache-2.0"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES"]
+dependencies = []
+
+[project.optional-dependencies]
+apple = ["mlx>=0.32.3,<0.33", "mlx-lm"]
+harbor = ["harbor==0.25.0", "openenv"]
+
+[project.scripts]
+apple-harness = "apple_harness_adapter.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.15,<0.16"]
+
+[tool.uv.sources]
+mlx-lm = { git = "https://github.com/ml-explore/mlx-lm.git", rev = "e2b5bbd3bd9d186dea895e60802aa765e70b9d93" }
+openenv = { git = "https://github.com/openenv/OpenEnv.git", rev = "3659dc73eb8114724209e642eee749cd94348ce3" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/apple_harness_adapter"]
+
+[tool.ruff]
+line-length = 100

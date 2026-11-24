@@ -1,0 +1,12 @@
+/.env
+/.venv/
+/.pytest_cache/
+/.ruff_cache/
+/build/
+/dist/
+/runs/
+/checkpoints/
+__pycache__/
+*.egg-info/
+*.safetensors
+.DS_Store

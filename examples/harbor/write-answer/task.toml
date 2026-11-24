@@ -1,0 +1,14 @@
+version = "1.0"
+
+[agent]
+user = "node"
+timeout_sec = 180
+
+[verifier]
+user = "root"
+timeout_sec = 20
+
+[environment]
+network_mode = "no-network"
+cpus = 2
+memory_mb = 1024
