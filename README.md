@@ -49,6 +49,8 @@ The trainer compares captured behavior log probabilities to its batched scoring 
 
 Pass `harbor --gradient-checkpointing` to recompute Inkling decoder activations during the backward pass. This reduces peak optimizer memory at the cost of extra computation. Profile the longest captured turns before raising the rollout context budget.
 
+Pass `harbor --score-block-size 32` to use the sampler's cached prompt prefill in the differentiable scoring pass. This mode checkpoints decoder layers and backpropagates across cache boundaries. It rescans a turn with smaller completion blocks when token log probabilities exceed `--max-logprob-drift`, ending at sampler-shaped one-token decode if needed. The saved group metrics include the accepted block size per turn. Long one-token fallbacks can dominate update time.
+
 ## Local validation
 
 On an M4 Max with 128 GB unified memory, `smoke` backpropagated through 43,008 LoRA parameters in the repeated decoder block at a peak of 16.7 GiB of MLX memory. `toy-step` updated those parameters from eight live samples. The bundled Pi fixture also passed its Harbor verifier with a four-turn trace that OpenEnv reconciled against Pi's session record.
@@ -58,6 +60,8 @@ The eight-attempt Harbor group captured 1,352 sampled tokens across 23 turns. Al
 A repeat with SafeAgents enforcement produced a LoRA update from eight passing attempts and 15 allowed tool calls. The Docker test also uses a scripted completion to verify that Pi can make a legitimate workspace write in a response that contains a blocked dummy reward-file write. The raw verifier score is 1, the training reward is 0, and OpenEnv reconciles the original sampled tokens with Pi's trace.
 
 Gradient checkpointing produced a LoRA update from four fresh fixture attempts at 25.3 GiB of peak MLX memory. A backward pass over a recorded 4,020-token Termgrade turn reached 43.3 GiB. Cached sampler replay reproduced the recorded log probabilities for that turn. [Pinned Termgrade dataset](https://huggingface.co/datasets/ai-and/termgrade-environments/tree/f27ea56e45c6f09039f6eaa2e7daa5773a70ccee)
+
+Cached-prefill scoring produced a nonzero gradient on a full 7,733-token Termgrade turn with 0.097 nats maximum drift and 34.7 GiB peak MLX memory. On a 32-token completion prefix with a 5,891-token prompt, LoRA gradient cosine similarity to one-token cached decode exceeded 0.998 for the active matrices before and after loading the pilot adapter.
 
 The base checkpoint and the saved adapter each passed one held-out smoke rollout with one tool call using Harbor's upstream `hello-world-multiple-solutions` instruction and verifier. Its image was replaced with the offline Pi fixture image and the verifier ran in the same container. [Upstream Harbor task](https://github.com/harbor-framework/harbor/tree/6f5d3df26b2324d7ea5b09d4254cc7bc3c8b1fa6/examples/tasks/hello-world-multiple-solutions)
 

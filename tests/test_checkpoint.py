@@ -81,6 +81,7 @@ def test_resume_retries_partial_group_with_same_adam_rng_and_schedule(
         learning_rate=1e-5,
         max_logprob_drift=0.2,
         gradient_checkpointing=False,
+        score_block_size=0,
         output=tmp_path / "continuous",
         task=tasks,
         adapter=None,

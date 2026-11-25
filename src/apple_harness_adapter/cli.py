@@ -92,6 +92,7 @@ def harbor_run(policy, args) -> dict:
         args.learning_rate,
         args.max_logprob_drift,
         gradient_checkpointing=args.gradient_checkpointing,
+        score_block_size=args.score_block_size,
     )
     trainer.optimizer.init(policy.model.trainable_parameters())
     config = {key: value for key, value in vars(args).items() if key != "resume"} | {
@@ -101,6 +102,8 @@ def harbor_run(policy, args) -> dict:
         "adapter": str(args.adapter.resolve()) if args.adapter else None,
         "checkpoint_version": CHECKPOINT_VERSION,
     }
+    if not args.score_block_size:
+        config.pop("score_block_size")
     with lock_run(args.output, args.resume):
         metrics = prepare_run(args.output, config, args.resume, policy, trainer.optimizer)
         for step in range(len(metrics), args.steps):
@@ -177,6 +180,12 @@ def main() -> None:
         action="store_true",
         help="recompute decoder activations during the optimizer pass to reduce peak memory",
     )
+    harbor.add_argument(
+        "--score-block-size",
+        type=int,
+        default=0,
+        help="score with the sampler's cached prefill and up to this many tokens per decode block",
+    )
     harbor.add_argument("--adapter", type=Path, help="initialize from a saved adapter")
     harbor.add_argument("--reward-key", default="")
     harbor.add_argument(
@@ -197,6 +206,8 @@ def main() -> None:
     if args.command == "harbor":
         if min(args.steps, args.max_turns, args.max_output, args.max_context) < 1:
             parser.error("Steps and token/turn limits must be positive")
+        if args.score_block_size < 0:
+            parser.error("Score block size must be nonnegative")
         for path in args.task:
             try:
                 with (path / "task.toml").open("rb") as task_file:

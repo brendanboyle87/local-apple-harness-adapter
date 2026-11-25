@@ -8,6 +8,7 @@ import mlx.nn as nn
 import mlx.optimizers as optim
 from mlx.utils import tree_flatten, tree_map
 
+from .cached_score import CachedScoringDrift, CachedTurn
 from .policy import InklingPolicy, checkpoint_decoder_layers
 from .trace import Rollout, Turn, group_advantages
 
@@ -26,14 +27,18 @@ class GRPO:
         max_logprob_drift: float,
         *,
         gradient_checkpointing: bool = False,
+        score_block_size: int = 0,
     ):
         if not isfinite(learning_rate) or learning_rate <= 0:
             raise ValueError("Learning rate must be finite and positive")
         if not isfinite(max_logprob_drift) or max_logprob_drift <= 0:
             raise ValueError("Log-probability tolerance must be finite and positive")
+        if score_block_size < 0:
+            raise ValueError("Score block size must be nonnegative")
         self.policy = policy
         self.optimizer = optim.Adam(learning_rate=learning_rate)
         self.max_logprob_drift = max_logprob_drift
+        self.score_block_size = score_block_size
         self.gradient_checkpointing = (
             checkpoint_decoder_layers if gradient_checkpointing else nullcontext
         )
@@ -48,6 +53,36 @@ class GRPO:
         clipped = mx.clip(ratio, 0.8, 1.2)
         loss = -mx.minimum(ratio * advantage, clipped * advantage).sum()
         return loss, mx.max(mx.abs(logprobs - mx.array(turn.old_logprobs)))
+
+    def _cached_turn_gradient(self, turn, advantage):
+        size = self.score_block_size
+        largest_drift = 0.0
+        while True:
+            try:
+                loss, drift, grad = CachedTurn(self.policy, turn, size).loss_and_grad(
+                    advantage, self.max_logprob_drift
+                )
+                return loss, drift, grad, size, max(largest_drift, drift)
+            except CachedScoringDrift as exc:
+                if size == 1 or not isfinite(exc.drift):
+                    raise
+                largest_drift = max(largest_drift, exc.drift)
+                size //= 2
+
+    def _batched_turn_gradient(self, turn, advantage):
+        with self.gradient_checkpointing():
+            (loss, drift), grad = self.loss_and_grad(self.policy.model, turn, advantage)
+        batched_drift = drift = drift.item()
+        replayed = isfinite(drift) and drift > self.max_logprob_drift
+        if replayed:
+            replay = self.policy.replay_sampling_logprobs(turn)
+            drift = mx.max(mx.abs(replay - mx.array(turn.old_logprobs))).item()
+        if not isfinite(drift) or drift > self.max_logprob_drift:
+            raise RuntimeError(
+                f"Behavior and scoring log probabilities differ by {drift:.4f} nats "
+                f"(limit {self.max_logprob_drift:.4f})"
+            )
+        return loss.item(), drift, grad, replayed, batched_drift
 
     def update(self, rollouts: list[Rollout]) -> dict:
         advantages = group_advantages(rollouts)
@@ -64,29 +99,28 @@ class GRPO:
 
         gradients = None
         total_loss, max_drift, max_batched_drift, replayed_turns = 0.0, 0.0, 0.0, 0
+        cached_block_sizes = []
         for rollout, advantage in zip(rollouts, advantages, strict=True):
             count = sum(len(turn.completion_token_ids) for turn in rollout.turns)
             weight = 1 / (len(rollouts) * count)
             for turn in rollout.turns:
-                with self.gradient_checkpointing():
-                    (loss, drift), grad = self.loss_and_grad(self.policy.model, turn, advantage)
-                drift = drift.item()
-                max_batched_drift = max(max_batched_drift, drift)
-                if isfinite(drift) and drift > self.max_logprob_drift:
-                    replay = self.policy.replay_sampling_logprobs(turn)
-                    drift = mx.max(mx.abs(replay - mx.array(turn.old_logprobs))).item()
-                    replayed_turns += 1
-                if not isfinite(drift) or drift > self.max_logprob_drift:
-                    raise RuntimeError(
-                        f"Behavior and scoring log probabilities differ by {drift:.4f} nats "
-                        f"(limit {self.max_logprob_drift:.4f})"
+                if self.score_block_size:
+                    loss, drift, grad, block, raw_drift = self._cached_turn_gradient(
+                        turn, advantage
                     )
+                    cached_block_sizes.append(block)
+                else:
+                    loss, drift, grad, replayed, raw_drift = self._batched_turn_gradient(
+                        turn, advantage
+                    )
+                    replayed_turns += replayed
+                max_batched_drift = max(max_batched_drift, raw_drift)
                 grad = tree_map(lambda value: value * weight, grad)
                 gradients = (
                     grad if gradients is None else tree_map(lambda a, b: a + b, gradients, grad)
                 )
                 mx.eval(gradients)
-                total_loss += loss.item() * weight
+                total_loss += loss * weight
                 max_drift = max(max_drift, drift)
 
         norm = gradient_norm(gradients)
@@ -106,6 +140,8 @@ class GRPO:
         delta = mx.max(mx.abs(after - before)).item()
         if not isfinite(delta) or delta == 0:
             raise RuntimeError("Optimizer did not produce a finite, nonzero LoRA update")
+        if cached_block_sizes:
+            metrics["cached_decode_blocks"] = cached_block_sizes
         return metrics | {
             "updated": True,
             "loss": total_loss,
