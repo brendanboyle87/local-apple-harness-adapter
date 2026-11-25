@@ -1,4 +1,5 @@
 /.env
+/HANDOFF.local.md
 /.venv/
 /.pytest_cache/
 /.ruff_cache/

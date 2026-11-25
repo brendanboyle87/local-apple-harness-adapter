@@ -63,6 +63,8 @@ Gradient checkpointing produced a LoRA update from four fresh fixture attempts a
 
 Cached-prefill scoring produced a nonzero gradient on a full 7,733-token Termgrade turn with 0.097 nats maximum drift and 34.7 GiB peak MLX memory. On a 32-token completion prefix with a 5,891-token prompt, LoRA gradient cosine similarity to one-token cached decode exceeded 0.998 for the active matrices before and after loading the pilot adapter.
 
+A five-group Termgrade rehearsal applied five correctness-driven updates across three training tasks. All 20 traces reconciled and each update passed the 0.2-nat drift check. The detached restart after group 2 restored Adam and sampling state from the checkpoint. The five groups took 7h 28m end to end on the M4 Max, with a peak of 38.6 GiB of MLX memory. A paired held-out evaluation of this adapter is pending.
+
 The base checkpoint and the saved adapter each passed one held-out smoke rollout with one tool call using Harbor's upstream `hello-world-multiple-solutions` instruction and verifier. Its image was replaced with the offline Pi fixture image and the verifier ran in the same container. [Upstream Harbor task](https://github.com/harbor-framework/harbor/tree/6f5d3df26b2324d7ea5b09d4254cc7bc3c8b1fa6/examples/tasks/hello-world-multiple-solutions)
 
 ## Development
