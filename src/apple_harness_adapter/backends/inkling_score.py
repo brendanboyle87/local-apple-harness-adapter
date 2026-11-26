@@ -10,7 +10,7 @@ from mlx.nn.utils import checkpoint
 from mlx.utils import tree_flatten, tree_unflatten
 from mlx_lm.models.inkling2 import layers
 
-from .trace import Turn
+from ..trace import Turn
 
 _MAX_CACHE_CHECKPOINTS = 16
 

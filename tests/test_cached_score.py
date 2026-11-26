@@ -9,7 +9,7 @@ import mlx.core as mx  # noqa: E402
 import mlx.nn as nn  # noqa: E402
 from mlx_lm.models.cache import ArraysCache, CacheList, KVCache  # noqa: E402
 
-from apple_harness_adapter.cached_score import CachedScoringDrift, CachedTurn  # noqa: E402
+from apple_harness_adapter.backends.inkling_score import CachedScoringDrift, CachedTurn  # noqa: E402
 from apple_harness_adapter.trace import Turn  # noqa: E402
 
 

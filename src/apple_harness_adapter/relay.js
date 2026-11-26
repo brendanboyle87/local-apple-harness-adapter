@@ -1,4 +1,4 @@
-// Loopback HTTP for Pi, carried over Docker exec's stdin and stdout.
+// Harness loopback HTTP, carried over Docker exec's stdin and stdout.
 const http = require("node:http");
 const readline = require("node:readline");
 

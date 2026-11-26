@@ -13,7 +13,7 @@ license-files = ["LICENSE", "THIRD_PARTY_NOTICES"]
 dependencies = []
 
 [project.optional-dependencies]
-apple = ["mlx>=0.32.3,<0.33", "mlx-lm"]
+apple = ["huggingface-hub", "mlx>=0.32.3,<0.33", "mlx-lm"]
 harbor = ["harbor==0.25.0", "openenv", "safeagents", "atif-scan==0.8.24"]
 
 [project.scripts]

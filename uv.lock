@@ -1233,6 +1233,7 @@ source = { editable = "." }
 
 [package.optional-dependencies]
 apple = [
+    { name = "huggingface-hub" },
     { name = "mlx" },
     { name = "mlx-lm" },
 ]
@@ -1253,6 +1254,7 @@ dev = [
 requires-dist = [
     { name = "atif-scan", marker = "extra == 'harbor'", specifier = "==0.8.24" },
     { name = "harbor", marker = "extra == 'harbor'", specifier = "==0.25.0" },
+    { name = "huggingface-hub", marker = "extra == 'apple'" },
     { name = "mlx", marker = "extra == 'apple'", specifier = ">=0.32.3,<0.33" },
     { name = "mlx-lm", marker = "extra == 'apple'", git = "https://github.com/ml-explore/mlx-lm.git?rev=e2b5bbd3bd9d186dea895e60802aa765e70b9d93" },
     { name = "openenv", marker = "extra == 'harbor'", git = "https://github.com/openenv/OpenEnv.git?rev=3659dc73eb8114724209e642eee749cd94348ce3" },

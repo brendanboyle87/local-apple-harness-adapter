@@ -1,54 +1,19 @@
-"""Inkling chat-completions endpoint with exact sampled IDs and log probabilities."""
+"""Chat-completions endpoint with exact sampled IDs and log probabilities."""
 
 import json
-import re
 from uuid import uuid4
-
-MODEL_NAME = "inkling-2-mini"
-FRAME = re.compile(r"<\|message_model\|>([^<]*?)<\|content_(text|thinking|invoke_tool_json)\|>")
-END = "<|end_message|>"
-EOS = "<|content_model_end_sampling|>"
 
 
 class ContextBudgetExhausted(ValueError):
     """The full rendered prompt leaves no room for a sampled token."""
 
 
-def parse_completion(text: str, tools: list[dict], *, include_undeclared: bool = False) -> dict:
-    message = {"role": "assistant", "content": None}
-    allowed = {tool["function"]["name"] for tool in tools}
-    frames = list(FRAME.finditer(text))
-    for index, frame in enumerate(frames):
-        name, kind = frame.groups()
-        boundary = frames[index + 1].start() if index + 1 < len(frames) else len(text)
-        segment = text[frame.end() : boundary]
-        content, delimiter, _ = segment.partition(END)
-        if not delimiter:
-            content = content.split(EOS, 1)[0]
-        if kind == "text":
-            message["content"] = (message["content"] or "") + content
-        elif kind == "thinking":
-            message["reasoning_content"] = message.get("reasoning_content", "") + content
-        elif delimiter and (include_undeclared or name in allowed):
-            try:
-                invocation = json.loads(content)
-            except json.JSONDecodeError:
-                continue
-            if (
-                isinstance(invocation, dict)
-                and invocation.get("name") == name
-                and isinstance(invocation.get("args"), dict)
-            ):
-                message.setdefault("tool_calls", []).append(
-                    {
-                        "type": "function",
-                        "id": f"call_{uuid4().hex}",
-                        "function": {"name": name, "arguments": json.dumps(invocation["args"])},
-                    }
-                )
-    if not frames:
-        message["content"] = text.split(EOS, 1)[0].split(END, 1)[0]
-    return message
+def function_call(name: str, arguments: dict) -> dict:
+    return {
+        "type": "function",
+        "id": f"call_{uuid4().hex}",
+        "function": {"name": name, "arguments": json.dumps(arguments)},
+    }
 
 
 def chat_completion(
@@ -94,11 +59,11 @@ def chat_completion(
     if limit < 1:
         raise ValueError("The completion limit must allow at least one token")
     turn = policy.sample(prompt, limit, float(request.get("temperature", 1)))
-    message = parse_completion(
-        policy.decode(turn.completion_token_ids), tools, include_undeclared=include_undeclared
+    message = policy.parse_completion(
+        turn.completion_token_ids, tools, include_undeclared=include_undeclared, effort=effort
     )
     finish = "length" if len(turn.completion_token_ids) == limit else "stop"
-    if turn.completion_token_ids[-1] in policy.tokenizer.eos_token_ids:
+    if policy.is_stop_token(turn.completion_token_ids[-1]):
         finish = "stop"
     if message.get("tool_calls"):
         finish = "tool_calls"
@@ -109,7 +74,7 @@ def chat_completion(
     return {
         "id": f"chatcmpl-{uuid4().hex}",
         "object": "chat.completion",
-        "model": MODEL_NAME,
+        "model": policy.model_name,
         "choices": [
             {
                 "index": 0,

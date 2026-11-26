@@ -45,6 +45,13 @@ def prepare_run(output: Path, config: dict, resume: bool, policy, optimizer) -> 
     previous = read_config(output)
     if previous.get("checkpoint_version") != CHECKPOINT_VERSION:
         raise ValueError("This run predates resumable checkpoints")
+    if "harness" in config:
+        previous.setdefault("harness", "pi")
+    if "backend" not in previous and "model_identity" not in previous:
+        previous["backend"] = "inkling"
+        # Older runs already compared the requested model and revision below.
+        if config.get("backend") == "inkling":
+            previous["model_identity"] = config.get("model_identity")
     changed = sorted(
         key
         for key in previous.keys() | config.keys()

@@ -10,10 +10,12 @@ from math import isfinite
 from pathlib import Path
 from time import monotonic
 
+from .backends import DEFAULT_MODELS, DEFAULT_REVISIONS, backend_class
 from .trace import Rollout
 
-DEFAULT_MODEL = "mlx-community/Inkling-2-Mini-4bit"
-DEFAULT_REVISION = "9c0e2960609ba7cb40daf92c6f7bf8ed56e1dd62"
+# Used by existing Inkling profiling scripts.
+DEFAULT_MODEL = DEFAULT_MODELS["inkling"]
+DEFAULT_REVISION = DEFAULT_REVISIONS[DEFAULT_MODEL]
 
 
 def write_json(path: Path, data) -> None:
@@ -38,7 +40,8 @@ def smoke(policy, args) -> dict:
     norm = gradient_norm(grad)
     drift = mx.max(mx.abs(policy.score(policy.model, turn) - mx.array(turn.old_logprobs))).item()
     result = {
-        "target": policy.target,
+        "target": policy.targets[0],
+        "targets": list(policy.targets),
         "trainable_parameters": policy.trainable_count,
         "prompt_tokens": len(prompt),
         "sampled_tokens": len(turn.completion_token_ids),
@@ -59,15 +62,13 @@ def toy_step(policy, args) -> dict:
     from .grpo import GRPO
 
     content = "Pick either red or blue at random. Reply with just the chosen word."
-    prompt = policy.prompt_ids([{"role": "user", "content": content}], None, "none")
-    prompt += policy.tokenizer.encode("<|message_model|><|content_text|>", add_special_tokens=False)
+    prompt = policy.toy_prompt_ids([{"role": "user", "content": content}])
     args.output.mkdir(parents=True, exist_ok=False)
     rollouts = []
     answers = []
     for _ in range(args.attempts):
         turn = policy.sample(prompt, 16, args.temperature)
-        text = policy.decode(turn.completion_token_ids)
-        answer = text.split("<|")[0].strip().lower()
+        answer = policy.toy_answer(turn.completion_token_ids)
         rollouts.append(Rollout("pick-red", (turn,), float(answer == "red"), 0))
         answers.append(answer)
     write_json(args.output / "rollouts.json", [asdict(rollout) for rollout in rollouts])
@@ -100,6 +101,9 @@ def harbor_run(policy, args) -> dict:
         "task_digests": [Packager.compute_content_hash(path)[0] for path in args.task],
         "output": str(args.output.resolve()),
         "adapter": str(args.adapter.resolve()) if args.adapter else None,
+        "backend": policy.backend,
+        "harness": getattr(args, "harness", "pi"),
+        "model_identity": policy.model_identity,
         "checkpoint_version": CHECKPOINT_VERSION,
     }
     if not args.score_block_size:
@@ -131,6 +135,7 @@ def harbor_run(policy, args) -> dict:
                 }
             result = update | {
                 "task": task.name,
+                "harness": config["harness"],
                 "correctness": [rollout.correctness for rollout in rollouts],
                 "tool_calls": [rollout.tool_calls for rollout in rollouts],
                 "safe_agents": args.safe_agents,
@@ -154,21 +159,23 @@ def training_options(parser) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--backend", default="inkling", choices=DEFAULT_MODELS)
     parser.add_argument(
-        "--model", default=DEFAULT_MODEL, help="Hugging Face model ID or local snapshot"
+        "--model", help="Hugging Face model ID or local snapshot (defaults to the backend's model)"
     )
     parser.add_argument("--revision", help="Hugging Face checkpoint revision")
-    parser.add_argument("--rank", type=int, default=8)
+    parser.add_argument("--rank", type=int, help="LoRA rank (defaults to the backend's rank)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--temperature", type=float, default=0.8)
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("smoke", help="check sampling, scoring and LoRA backward through Inkling")
+    commands.add_parser("smoke", help="check sampling, scoring and LoRA backward")
     toy = commands.add_parser(
         "toy-step", help="collect and optimize one live verifier-scored group"
     )
     training_options(toy)
-    harbor = commands.add_parser("harbor", help="collect and train on local Harbor tasks using Pi")
+    harbor = commands.add_parser("harbor", help="collect and train on local Harbor tasks")
     training_options(harbor)
+    harbor.add_argument("--harness", choices=("pi", "opencode"), default="pi")
     harbor.add_argument("--task", type=Path, action="append", required=True)
     harbor.add_argument("--steps", type=int, default=1)
     harbor.add_argument(
@@ -192,7 +199,7 @@ def main() -> None:
         "--safe-agents",
         choices=("enforce", "log-only", "off"),
         default="enforce",
-        help="review Pi tool calls with SafeAgents (default: enforce)",
+        help="review harness tool calls with SafeAgents (default: enforce)",
     )
     harbor.add_argument("--max-turns", type=int, default=4)
     harbor.add_argument("--max-output", type=int, default=128)
@@ -202,7 +209,7 @@ def main() -> None:
     )
     args = parser.parse_args()
     if platform.system() != "Darwin" or platform.machine() != "arm64":
-        parser.error("The Inkling backend requires Apple Silicon macOS")
+        parser.error("Local training requires Apple Silicon macOS")
     if args.command == "harbor":
         if min(args.steps, args.max_turns, args.max_output, args.max_context) < 1:
             parser.error("Steps and token/turn limits must be positive")
@@ -224,14 +231,22 @@ def main() -> None:
         parser.error("GRPO requires at least two attempts, and collection requires at least one")
 
     try:
-        from .policy import InklingPolicy
+        policy_class = backend_class(args.backend)
+        policy_class.validate_scoring(
+            getattr(args, "gradient_checkpointing", False), getattr(args, "score_block_size", 0)
+        )
     except ModuleNotFoundError as exc:
         if exc.name in {"mlx", "mlx_lm"}:
             parser.error("Install the Apple backend with `uv sync --extra apple`")
         raise
+    except ValueError as exc:
+        parser.error(str(exc))
 
-    args.revision = args.revision or (DEFAULT_REVISION if args.model == DEFAULT_MODEL else None)
-    policy = InklingPolicy(args.model, args.revision, args.rank, args.seed)
+    args.model = args.model or DEFAULT_MODELS[args.backend]
+    args.revision = args.revision or DEFAULT_REVISIONS.get(args.model)
+    if args.rank is None:
+        args.rank = policy_class.default_rank
+    policy = policy_class(args.model, args.revision, args.rank, args.seed)
     if adapter := getattr(args, "adapter", None):
         policy.load_adapter(adapter)
     result = {"smoke": smoke, "toy-step": toy_step, "harbor": harbor_run}[args.command](

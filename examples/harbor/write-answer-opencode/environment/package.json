@@ -1,0 +1,7 @@
+{
+  "name": "apple-harness-opencode-fixture",
+  "private": true,
+  "dependencies": {
+    "opencode-ai": "1.18.30"
+  }
+}

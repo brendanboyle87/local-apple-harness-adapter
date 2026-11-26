@@ -1,4 +1,4 @@
-"""Run native Pi in offline Harbor containers and collect OpenEnv traces."""
+"""Run supported harnesses in offline Harbor containers and collect OpenEnv traces."""
 
 import asyncio
 import json
@@ -9,6 +9,7 @@ from dataclasses import asdict
 from importlib.resources import files
 
 import httpx
+from harbor.agents.installed.opencode import OpenCode
 from harbor.environments import factory
 from harbor.environments.docker import COMPOSE_NO_NETWORK_PATH
 from harbor.environments.docker.docker import DockerEnvironment
@@ -19,12 +20,19 @@ from openenv.harbor.install_fixes import InterceptPi
 from openenv.harbor.rollout import run_rollout
 from safeagents.guard import Config
 
-from .endpoint import MODEL_NAME, ContextBudgetExhausted, chat_completion
+from .endpoint import ContextBudgetExhausted, chat_completion
 from .safe_agents import SafetyAudit, TrainingScanner
 from .trace import Rollout, Turn
 
 PI_VERSION = "1.5.2"
-PI_RELAY_URL = "http://127.0.0.1:18765"
+OPENCODE_VERSION = "1.18.30"
+RELAY_URL = "http://127.0.0.1:18765"
+PI_RELAY_URL = RELAY_URL
+DEFAULT_HARNESS = "pi"
+HARNESSES = {
+    "pi": "apple_harness_adapter.harbor:OfflinePi",
+    "opencode": "apple_harness_adapter.harbor:OfflineOpenCode",
+}
 CAPTURE_CLIENT = ContextVar("capture_client")
 
 
@@ -68,15 +76,21 @@ def offline_docker():
         factory._ENVIRONMENT_REGISTRY[EnvironmentType.DOCKER] = entry
 
 
-class OfflinePi(InterceptPi):
+class OfflineRelay:
+    """Use the installed agent's OpenEnv seam over a container-local relay."""
+
+    pinned_version: str
+
     async def install(self, environment) -> None:
-        result = await self.exec_as_agent(environment, ". ~/.nvm/nvm.sh; pi --version")
-        if result.return_code != 0 or (result.stdout or "").strip() != PI_VERSION:
-            raise RuntimeError(f"The task image must preinstall Pi {PI_VERSION}")
+        result = await self.exec_as_agent(environment, self.get_version_command())
+        if result.return_code != 0 or (result.stdout or "").strip() != self.pinned_version:
+            raise RuntimeError(
+                f"The task image must preinstall {self.name()} {self.pinned_version}"
+            )
 
     async def run(self, instruction, environment, context) -> None:
         if not isinstance(environment, DockerEnvironment):
-            raise RuntimeError("Offline Pi requires Harbor's Docker backend")
+            raise RuntimeError("The offline harness requires Harbor's Docker backend")
         container = await environment._run_docker_compose_command(["ps", "--quiet", "main"])
         container_id = container.stdout.strip()
         if not container_id or any(char not in "0123456789abcdef" for char in container_id):
@@ -91,7 +105,7 @@ class OfflinePi(InterceptPi):
         )
         network, _ = await inspect.communicate()
         if inspect.returncode or network.strip() != b"none":
-            raise RuntimeError("Pi requires a Docker container with network mode `none`")
+            raise RuntimeError("The harness requires a Docker container with network mode `none`")
 
         relay = files("apple_harness_adapter").joinpath("relay.js").read_text(encoding="utf-8")
         process = await asyncio.create_subprocess_exec(
@@ -110,14 +124,14 @@ class OfflinePi(InterceptPi):
         )
         try:
             if await asyncio.wait_for(process.stdout.readline(), timeout=10) != b"ready\n":
-                raise RuntimeError("Pi's loopback relay did not start")
+                raise RuntimeError("The harness loopback relay did not start")
             bridge = asyncio.create_task(self._forward(process))
             agent = asyncio.create_task(super().run(instruction, environment, context))
             try:
                 done, _ = await asyncio.wait((bridge, agent), return_when=asyncio.FIRST_COMPLETED)
                 if bridge in done:
                     bridge.result()
-                    raise RuntimeError("Pi's loopback relay exited during the rollout")
+                    raise RuntimeError("The harness loopback relay exited during the rollout")
                 agent.result()
             finally:
                 for task in (bridge, agent):
@@ -154,6 +168,26 @@ class OfflinePi(InterceptPi):
             await process.stdin.drain()
 
 
+class OfflinePi(OfflineRelay, InterceptPi):
+    pinned_version = PI_VERSION
+
+
+class OfflineOpenCode(OfflineRelay, OpenCode):
+    pinned_version = OPENCODE_VERSION
+
+    async def exec_as_agent(self, environment, command, env=None, cwd=None, timeout_sec=None):
+        offline_env = {
+            "OPENCODE_DISABLE_AUTOUPDATE": "1",
+            "OPENCODE_DISABLE_DEFAULT_PLUGINS": "1",
+            "OPENCODE_DISABLE_LSP_DOWNLOAD": "1",
+            "OPENCODE_DISABLE_MODELS_FETCH": "1",
+            "OPENCODE_DISABLE_AUTOCOMPACT": "1",
+        }
+        return await super().exec_as_agent(
+            environment, command, env=(env or {}) | offline_env, cwd=cwd, timeout_sec=timeout_sec
+        )
+
+
 def training_rollout(result, blocked_tool_calls: int = 0) -> Rollout:
     if not result.ok or result.reward is None or not result.trainable:
         raise RuntimeError(
@@ -187,6 +221,7 @@ def training_rollout(result, blocked_tool_calls: int = 0) -> Rollout:
 
 
 async def collect_harbor(policy, args, trials_dir, save_attempt, task) -> list[Rollout]:
+    harness = HARNESSES[getattr(args, "harness", DEFAULT_HARNESS)]
     safety_attempt = ContextVar("safety_attempt")
     config = Config(scanner=TrainingScanner()) if args.safe_agents != "off" else None
 
@@ -224,7 +259,7 @@ async def collect_harbor(policy, args, trials_dir, save_attempt, task) -> list[R
         engine = "http://mlx.local/v1"
         capture = create_app(
             llm_url=engine,
-            model=MODEL_NAME,
+            model=policy.model_name,
             capture_level="tokens",
             max_output_tokens=args.max_output,
             admin_key=secrets.token_urlsafe(32),
@@ -248,11 +283,11 @@ async def collect_harbor(policy, args, trials_dir, save_attempt, task) -> list[R
                     try:
                         result = await run_rollout(
                             task_dir=task,
-                            harness="apple_harness_adapter.harbor:OfflinePi",
+                            harness=harness,
                             sandbox="docker",
                             registry=capture.state.registry,
-                            intercept_url=PI_RELAY_URL,
-                            model=MODEL_NAME,
+                            intercept_url=RELAY_URL,
+                            model=policy.model_name,
                             trials_dir=trials_dir,
                             reward_key=args.reward_key,
                             purpose="train",

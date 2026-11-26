@@ -1,10 +1,13 @@
-The differentiable Inkling 2 router in src/apple_harness_adapter/policy.py
-adapts MLX-LM's reference router. The original is distributed under the
-following license.
+The differentiable Inkling 2 router in src/apple_harness_adapter/backends/inkling.py
+adapts MLX-LM's reference router. The LFM3 implementation in
+src/apple_harness_adapter/backends/lfm3_model.py adapts MLX-LM PR #2016,
+revision a1de292b740bd8297e173f2c73047f5b6bdc43f1. Both are distributed under
+the following license.
 
 MIT License
 
 Copyright © 2023 Apple Inc.
+Copyright © 2026 Apple Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

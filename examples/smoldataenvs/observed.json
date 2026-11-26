@@ -1,0 +1,51 @@
+{
+  "hardware": "Apple M4 Max, 128 GB unified memory",
+  "model": "LiquidAI/LFM3-1.7B-MLX-bf16",
+  "harness": "Pi 1.5.2",
+  "training": {
+    "groups": 50,
+    "updates": 41,
+    "max_mlx_gib": 35.526,
+    "rollouts": 400,
+    "tasks": 14
+  },
+  "evaluation": {
+    "pairs": 150,
+    "reference_arm": "base",
+    "adapter_arm": "local",
+    "passes": {
+      "base": 72,
+      "local": 83
+    },
+    "adapter_only": 24,
+    "reference_only": 13,
+    "joint_passes": 59,
+    "calls_on_joint_passes": {
+      "base": 280,
+      "local": 219
+    },
+    "timeouts": {
+      "base": 0,
+      "local": 0
+    },
+    "blocked_calls": {
+      "base": 0,
+      "local": 0
+    },
+    "pass_rate_change_pp": 7.333333333333333,
+    "joint_tool_call_change_percent": -21.785714285714285,
+    "paired_uncertainty": {
+      "pass_rate_change_pp_ci95": [
+        -1.2901157981803144,
+        15.789473684210526
+      ],
+      "joint_tool_call_change_percent_ci95": [
+        -28.911431760204078,
+        -13.84615384615384
+      ],
+      "bootstrap_resamples": 10000,
+      "bootstrap_unit": "source_dataset",
+      "source_datasets": 93
+    }
+  }
+}

@@ -1,7 +1,8 @@
 import json
 from types import SimpleNamespace
 
-from apple_harness_adapter.endpoint import chat_completion, parse_completion
+from apple_harness_adapter.backends.inkling_chat import parse_completion
+from apple_harness_adapter.endpoint import chat_completion
 from apple_harness_adapter.trace import Turn
 
 TOOLS = [{"type": "function", "function": {"name": "write"}}]
@@ -32,11 +33,16 @@ def test_chat_completion_pairs_sampler_tokens_and_logprobs():
         assert ids == [11, 22] and limit == 4 and temp == 0.8
         return Turn(tuple(ids), (30, 31), (-0.1, -0.2), temp)
 
+    def parse_tokens(tokens, tools, *, include_undeclared, effort):
+        assert tokens == (30, 31) and tools == TOOLS and not include_undeclared and effort == "none"
+        return {"role": "assistant", "content": "Done"}
+
     policy = SimpleNamespace(
+        model_name="fixture-model",
         prompt_ids=prompt_ids,
         sample=sample,
-        tokenizer=SimpleNamespace(eos_token_ids={31}),
-        decode=lambda _: "<|message_model|><|content_text|>Done<|end_message|>" + EOS,
+        is_stop_token=lambda token: token == 31,
+        parse_completion=parse_tokens,
     )
     request = {
         "messages": [
@@ -51,6 +57,7 @@ def test_chat_completion_pairs_sampler_tokens_and_logprobs():
         "max_tokens": 8,
     }
     response = chat_completion(policy, request, max_context=6, max_output=128, effort="none")
+    assert response["model"] == "fixture-model"
     assert response["prompt_token_ids"] == [11, 22]
     choice = response["choices"][0]
     assert choice["token_ids"] == [30, 31]

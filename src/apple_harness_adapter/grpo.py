@@ -8,8 +8,7 @@ import mlx.nn as nn
 import mlx.optimizers as optim
 from mlx.utils import tree_flatten, tree_map
 
-from .cached_score import CachedScoringDrift, CachedTurn
-from .policy import InklingPolicy, checkpoint_decoder_layers
+from .backends.base import MLXPolicy
 from .trace import Rollout, Turn, group_advantages
 
 
@@ -22,7 +21,7 @@ def gradient_norm(gradients) -> float:
 class GRPO:
     def __init__(
         self,
-        policy: InklingPolicy,
+        policy: MLXPolicy,
         learning_rate: float,
         max_logprob_drift: float,
         *,
@@ -35,12 +34,13 @@ class GRPO:
             raise ValueError("Log-probability tolerance must be finite and positive")
         if score_block_size < 0:
             raise ValueError("Score block size must be nonnegative")
+        policy.validate_scoring(gradient_checkpointing, score_block_size)
         self.policy = policy
         self.optimizer = optim.Adam(learning_rate=learning_rate)
         self.max_logprob_drift = max_logprob_drift
         self.score_block_size = score_block_size
         self.gradient_checkpointing = (
-            checkpoint_decoder_layers if gradient_checkpointing else nullcontext
+            policy.checkpoint_layers if gradient_checkpointing else nullcontext
         )
         self.loss_and_grad = nn.value_and_grad(policy.model, self._turn_loss)
 
@@ -53,21 +53,6 @@ class GRPO:
         clipped = mx.clip(ratio, 0.8, 1.2)
         loss = -mx.minimum(ratio * advantage, clipped * advantage).sum()
         return loss, mx.max(mx.abs(logprobs - mx.array(turn.old_logprobs)))
-
-    def _cached_turn_gradient(self, turn, advantage):
-        size = self.score_block_size
-        largest_drift = 0.0
-        while True:
-            try:
-                loss, drift, grad = CachedTurn(self.policy, turn, size).loss_and_grad(
-                    advantage, self.max_logprob_drift
-                )
-                return loss, drift, grad, size, max(largest_drift, drift)
-            except CachedScoringDrift as exc:
-                if size == 1 or not isfinite(exc.drift):
-                    raise
-                largest_drift = max(largest_drift, exc.drift)
-                size //= 2
 
     def _batched_turn_gradient(self, turn, advantage):
         with self.gradient_checkpointing():
@@ -105,8 +90,8 @@ class GRPO:
             weight = 1 / (len(rollouts) * count)
             for turn in rollout.turns:
                 if self.score_block_size:
-                    loss, drift, grad, block, raw_drift = self._cached_turn_gradient(
-                        turn, advantage
+                    loss, drift, grad, block, raw_drift = self.policy.cached_gradient(
+                        turn, advantage, self.score_block_size, self.max_logprob_drift
                     )
                     cached_block_sizes.append(block)
                 else:
@@ -130,15 +115,13 @@ class GRPO:
             )
         if norm > 1:
             gradients = tree_map(lambda value: value / norm, gradients)
-        paths = dict(tree_flatten(self.policy.model.trainable_parameters()))
-        before = paths[f"{self.policy.target}.lora_b"]
+        before = dict(tree_flatten(self.policy.model.trainable_parameters()))
         self.optimizer.update(self.policy.model, gradients)
         mx.eval(self.policy.model.parameters(), self.optimizer.state)
-        after = dict(tree_flatten(self.policy.model.trainable_parameters()))[
-            f"{self.policy.target}.lora_b"
-        ]
-        delta = mx.max(mx.abs(after - before)).item()
-        if not isfinite(delta) or delta == 0:
+        after = dict(tree_flatten(self.policy.model.trainable_parameters()))
+        deltas = {key: mx.max(mx.abs(after[key] - value)).item() for key, value in before.items()}
+        delta = max(deltas.values())
+        if not all(map(isfinite, deltas.values())) or delta == 0:
             raise RuntimeError("Optimizer did not produce a finite, nonzero LoRA update")
         if cached_block_sizes:
             metrics["cached_decode_blocks"] = cached_block_sizes
@@ -149,5 +132,6 @@ class GRPO:
             "max_logprob_drift": max_drift,
             "max_batched_logprob_drift": max_batched_drift,
             "replayed_turns": replayed_turns,
-            "max_lora_b_delta": delta,
+            "max_adapter_delta": delta,
+            "max_lora_b_delta": max(deltas[f"{target}.lora_b"] for target in self.policy.targets),
         }

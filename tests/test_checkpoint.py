@@ -13,12 +13,15 @@ import mlx.core as mx  # noqa: E402
 import mlx.nn as nn  # noqa: E402
 
 from apple_harness_adapter import checkpoint, harbor  # noqa: E402
+from apple_harness_adapter.backends.base import MLXPolicy  # noqa: E402
 from apple_harness_adapter.cli import harbor_run  # noqa: E402
 from apple_harness_adapter.trace import Rollout, Turn  # noqa: E402
 
 
-class FixturePolicy:
-    target = "projection"
+class FixturePolicy(MLXPolicy):
+    backend = "inkling"
+    model_identity = {"model": "fixture", "revision": "test"}
+    targets = ("projection",)
 
     def __init__(self):
         self.model = nn.Module()
@@ -37,6 +40,14 @@ class FixturePolicy:
 
     def load_adapter(self, path):
         self.model.projection.lora_b = mx.load(str(path / "weights.safetensors"))["b"]
+
+
+def test_resume_treats_legacy_harbor_runs_as_pi(tmp_path):
+    config = {"checkpoint_version": checkpoint.CHECKPOINT_VERSION, "steps": 1, "backend": "lfm3"}
+    (tmp_path / "config.json").write_text(json.dumps(config))
+    assert checkpoint.prepare_run(tmp_path, config | {"harness": "pi"}, True, None, None) == []
+    with pytest.raises(ValueError, match="Resume configuration differs for harness"):
+        checkpoint.prepare_run(tmp_path, config | {"harness": "opencode"}, True, None, None)
 
 
 @pytest.mark.parametrize("interrupt_at", ["rollout", "commit"])
@@ -128,6 +139,16 @@ def test_resume_retries_partial_group_with_same_adam_rng_and_schedule(
 
     recorded_metrics = json.loads((partial / "metrics.json").read_text())
     assert harbor_run(FixturePolicy(), args)["groups"][-1] == recorded_metrics
+    config_path = args.output / "config.json"
+    config = json.loads(config_path.read_text())
+    config.pop("backend")
+    config.pop("model_identity")
+    config_path.write_text(json.dumps(config))
+    assert harbor_run(FixturePolicy(), args)["groups"][-1] == recorded_metrics
+    different_backend = FixturePolicy()
+    different_backend.backend = "qwen3"
+    with pytest.raises(ValueError, match="configuration differs for backend"):
+        harbor_run(different_backend, args)
     args.stage = "changed"
     with pytest.raises(ValueError, match="configuration differs"):
         harbor_run(FixturePolicy(), args)

@@ -151,7 +151,7 @@ def test_failed_guard_invalidates_the_attempt_even_if_the_verifier_passes(monkey
     with pytest.raises(RuntimeError, match="SafeAgents failed.*fixture scan error"):
         asyncio.run(
             harbor.collect_harbor(
-                None,
+                SimpleNamespace(model_name="guard-fixture"),
                 options,
                 tmp_path,
                 lambda _index, record: records.append(record),
@@ -167,6 +167,7 @@ def test_failed_guard_invalidates_the_attempt_even_if_the_verifier_passes(monkey
 @pytest.mark.skipif(os.getenv("APPLE_HARNESS_DOCKER_TEST") != "1", reason="requires Docker")
 @pytest.mark.parametrize("context_stop", [False, True])
 def test_real_pi_executes_allowed_call_and_reconciles_blocked_call(tmp_path, context_stop):
+    from apple_harness_adapter.backends.inkling_chat import parse_completion
     from apple_harness_adapter.harbor import collect_harbor
 
     source = Path(__file__).resolve().parents[1] / "examples/harbor/write-answer"
@@ -200,10 +201,13 @@ def test_real_pi_executes_allowed_call_and_reconciles_blocked_call(tmp_path, con
         return [11, 22] if len(prompts) == 1 else [11, 22, 31, 32, 23, 24]
 
     policy = SimpleNamespace(
+        model_name="inkling-2-mini",
         prompt_ids=prompt_ids,
-        tokenizer=SimpleNamespace(eos_token_ids={32}),
+        is_stop_token=lambda token: token == 32,
         sample=lambda ids, _limit, temp: Turn(tuple(ids), (31, 32), (-0.1, -0.2), temp),
-        decode=lambda _: next(completions),
+        parse_completion=lambda _tokens, tools, *, include_undeclared, effort: parse_completion(
+            next(completions), tools, include_undeclared=include_undeclared
+        ),
     )
     options = SimpleNamespace(
         safe_agents="enforce",
