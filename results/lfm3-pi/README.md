@@ -24,6 +24,8 @@ The 50 main groups account for **4 h 26 min 37 s** of collection and **3 h 26 mi
 
 ![Main training per-group reward, duration, and peak memory](training.svg)
 
+All three warmup updates and all 41 main-run updates triggered sampling replay. Main training replayed 1,044 of 2,143 turns in updated groups, with a worst dense log-probability drift of 1.4781 nats. Successful replay left the dense gradients in place. The effect on gradients and the final adapter remains unmeasured. [Replay methodology and both training runs](../../docs/methodology.md#log-probability-drift)
+
 ## Regenerate the reported statistics
 
 Run from the repository root with Python 3.12 or 3.13. No model, Docker, or additional Python packages are needed for this calculation.

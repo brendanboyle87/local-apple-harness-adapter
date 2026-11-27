@@ -12,6 +12,23 @@ The broader arm ran one fresh rollout per task with the same Pi version, verifie
 
 Across all 150 tasks the 30-task adapter used **20.04% fewer logical tokens** than base and **12.95% more** than the published adapter. It generated **3.51% more completion tokens** than base, with a confidence interval spanning zero. [Efficiency results, timing caveats, and reproduction](efficiency.md)
 
+## Log-probability replay audit
+
+All **45 optimizer updates** triggered replay at least once. **972 of 2,017 turns (48.2%)** in updated groups exceeded the `0.2`-nat dense-drift threshold and were replayed. The five groups with no update (8, 12, 13, 16, and 43) each had eight zero effective rewards. An interrupted attempt at group 32 had no committed metrics and the replay counts use the completed retry.
+
+| Metric across updated groups | Min | Median | Max |
+| --- | ---: | ---: | ---: |
+| Replayed turns | 11 | 22 | 34 |
+| Dense scorer's maximum drift (nats) | 0.3179 | 0.4492 | 0.7327 |
+| Accepted check's maximum drift (nats) | 0.173956 | 0.194153 | 0.199993 |
+| Pre-clip gradient norm | 0.1661 | 0.2740 | 0.8117 |
+| Maximum adapter parameter change | 3.162 × 10⁻⁵ | 6.158 × 10⁻⁵ | 6.892 × 10⁻⁵ |
+| Maximum LoRA B parameter change | 3.162 × 10⁻⁵ | 5.872 × 10⁻⁵ | 6.892 × 10⁻⁵ |
+
+The dense group maximum was between 0.30 and 0.50 nats in 38 updates and above 0.50 in groups 11, 20, 26, 27, 29, 41, and 44. Group 41 had the highest dense drift (0.7327 nats), while group 20 replayed the most turns (34/52). No update reached the global gradient-norm clip threshold of 1. The verifier passed 237/400 training rollouts. Mean effective reward was 0.6315 across all rollouts and 0.7016 in updated groups.
+
+The accepted check uses sampling-shaped scores on replayed turns and dense scores on other turns. The gradients always came from dense scoring. The records quantify score drift at the group level. The specific tokens that triggered replay and the effect on gradients or final adapter weights remain unknown. The held-out evaluation measured the archived adapter with collection only. [Per-group metrics](training.jsonl) · [Scoring methodology](../../docs/methodology.md#log-probability-drift)
+
 ## Evidence
 
 | File | Contents |

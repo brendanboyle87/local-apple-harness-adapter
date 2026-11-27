@@ -16,13 +16,15 @@ The 30-task adapter gained **18.7 percentage points** over base (paired 95% CI *
 
 The 30-task adapter used **42.4% fewer logical input and output tokens per success** than base (paired 95% CI **−51.2% to −32.9%**), including resources spent on failed attempts. Across all tasks it generated **3.5% more completion tokens** and took **1.2% less elapsed time**, with both intervals spanning zero. The published Harness Hub adapter matched its pass count while using fewer logical tokens. [Efficiency comparisons and limitations](results/lfm3-pi-breadth/efficiency.md)
 
+**Training caveat.** Every optimizer update in both local runs triggered at least one sampling replay check. In the 30-task run, dense scoring differed from the recorded sampling log probabilities by up to **0.7327 nats**. The replay check passed and the trainer retained the dense gradients. The held-out results measure the released checkpoints. Gradient agreement between the two scoring paths remains unmeasured. [Replay audit](results/lfm3-pi-breadth/README.md#log-probability-replay-audit)
+
 [30-task evidence](results/lfm3-pi-breadth/README.md) · [14-task evidence](results/lfm3-pi/README.md) · [Methodology](docs/methodology.md) · [Release and checksums](https://github.com/brendanboyle87/local-apple-harness-adapter/releases/tag/v0.1.0)
 
 ## Supported configurations
 
 | Configuration | Evidence |
 | --- | --- |
-| LFM3-1.7B BF16 + Pi | Empirically validated configuration for the results above |
+| LFM3-1.7B BF16 + Pi | Evaluated on held-out SmolDataEnvs tasks |
 | OpenCode | Implemented harness integration with a Docker-backed tool and trace test |
 | Qwen3 | Implemented model backend with local pilot training updates and zero passes in both arms of a 24-task coding pilot |
 | Inkling 2 Mini | Experimental model backend with local training rehearsals and a cached backward pass |
