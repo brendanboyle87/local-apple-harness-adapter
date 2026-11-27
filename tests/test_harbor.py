@@ -1,5 +1,7 @@
 import asyncio
 import os
+import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -13,6 +15,16 @@ from openenv.harbor.models import HarborRolloutResult, HarborTurn  # noqa: E402
 from apple_harness_adapter.endpoint import function_call  # noqa: E402
 from apple_harness_adapter.harbor import collect_harbor, training_rollout  # noqa: E402
 from apple_harness_adapter.trace import Turn  # noqa: E402
+
+
+def test_module_cli_dispatches_to_harbor_parser():
+    result = subprocess.run(
+        [sys.executable, "-m", "apple_harness_adapter.cli", "harbor", "--help"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "--harness {pi,opencode}" in result.stdout
 
 
 def test_harbor_bonus_counts_invocations_instead_of_available_tools():
