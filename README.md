@@ -1,6 +1,8 @@
-# Local Apple Harness Adapter
+# MLX Harness Adapter
 
-Train a LoRA adapter for an agent harness on an Apple Silicon Mac. This project implements Harness Hub's training recipe in native MLX, using real Pi or OpenCode sessions, Harbor tasks with executable verifiers, and a single-update, group-relative policy gradient. The measured single-Mac experiment uses LFM3-1.7B BF16 with Pi on a frozen selection of SmolDataEnvs tasks. [Harness Hub experiment](https://huggingface.co/blog/harness-hub/harness-adapters)
+Harness-specific reinforcement learning on Apple Silicon.
+
+MLX Harness Adapter is an independent open-source project for training harness-specific LoRA adapters locally in native MLX. It implements Harness Hub's online reinforcement learning recipe using real Pi or OpenCode sessions, Harbor tasks with executable verifiers, and a single-update, group-relative policy gradient. The measured single-Mac experiment uses LFM3-1.7B BF16 with Pi on a frozen selection of SmolDataEnvs tasks. [Harness Hub experiment](https://huggingface.co/blog/harness-hub/harness-adapters)
 
 ## Results and downloads
 

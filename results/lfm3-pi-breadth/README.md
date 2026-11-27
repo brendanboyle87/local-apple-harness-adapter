@@ -1,6 +1,6 @@
 # LFM3-1.7B BF16 + Pi, 30 training tasks
 
-The LFM3-1.7B BF16 adapter passed **100/150** held-out SmolDataEnvs tasks with Pi. The base model passed **72/150**. On this task selection the adapter had 35 adapter-only wins and seven base-only wins. The paired 95% intervals below describe variation across sampled task sources.
+The 30-task checkpoint from MLX Harness Adapter passed **100/150** held-out SmolDataEnvs tasks with LFM3-1.7B BF16 and Pi. The base model passed **72/150**. On this task selection the adapter had 35 adapter-only wins and seven base-only wins. The paired 95% intervals below describe variation across sampled task sources.
 
 | Reference | Reference passes | 30-task passes | Paired pass-rate change (95% CI) | Shared successes | Tool-call change on shared successes (95% CI) |
 | --- | ---: | ---: | ---: | ---: | ---: |

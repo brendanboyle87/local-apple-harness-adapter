@@ -1,6 +1,6 @@
 # LFM3-1.7B BF16 + Pi results
 
-On 150 held-out SmolDataEnvs tasks, the local adapter passed 83 tasks and the base model passed 72. The difference was **+7.33 percentage points** (paired 95% CI **−1.29 to +15.79 points**), which includes zero. Across 59 shared successes, tool calls fell from 280 to 219, a signed change of **−21.79%** (paired 95% CI **−28.91% to −13.85%**).
+On 150 held-out SmolDataEnvs tasks, the 14-task checkpoint from MLX Harness Adapter passed 83 tasks and the base model passed 72. The difference was **+7.33 percentage points** (paired 95% CI **−1.29 to +15.79 points**), which includes zero. Across 59 shared successes, tool calls fell from 280 to 219, a signed change of **−21.79%** (paired 95% CI **−28.91% to −13.85%**).
 
 Across all 150 tasks the adapter used **14.50% fewer logical input and output tokens** while generating **10.11% more completion tokens**. End-to-end attempt time rose **4.86%**, with a confidence interval spanning zero. [Efficiency results, definitions, and regeneration](efficiency.md)
 

@@ -1,6 +1,6 @@
 # SmolDataEnvs example
 
-Run from the repository root after the main README's install step. The manifests pin the public [SmolDataEnvs task revision](https://huggingface.co/datasets/FineEnvs/SmolDataEnvs-harbor-train/tree/588744be728257abfb8d4984ec8fab2acbd1f7e1), task order, and input hashes. Preparation downloads the upstream tasks and builds no-network ARM64 images. Training and evaluation use the local model.
+Run from the MLX Harness Adapter repository root after the [installation step](../../README.md#install). The manifests pin the public [SmolDataEnvs task revision](https://huggingface.co/datasets/FineEnvs/SmolDataEnvs-harbor-train/tree/588744be728257abfb8d4984ec8fab2acbd1f7e1), task order, and input hashes. Preparation downloads the upstream tasks and builds no-network ARM64 images. Training and evaluation use the local model.
 
 ## One training group
 
