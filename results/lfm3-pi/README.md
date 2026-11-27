@@ -1,6 +1,8 @@
 # LFM3-1.7B BF16 + Pi results
 
-On 150 held-out SmolDataEnvs tasks, the local adapter passed 83 tasks and the base model passed 72. The difference was **+7.33 percentage points** (paired 95% CI **−1.29 to +15.79 points**), which includes zero. Across 59 shared successes, tool calls fell from 280 to 219, a signed change of **−21.79%** (paired 95% CI **−28.91% to −13.85%**). This counts invocations on shared successes. Inference tokens, latency, and total compute cost are separate quantities.
+On 150 held-out SmolDataEnvs tasks, the local adapter passed 83 tasks and the base model passed 72. The difference was **+7.33 percentage points** (paired 95% CI **−1.29 to +15.79 points**), which includes zero. Across 59 shared successes, tool calls fell from 280 to 219, a signed change of **−21.79%** (paired 95% CI **−28.91% to −13.85%**).
+
+Across all 150 tasks the adapter used **14.50% fewer logical input and output tokens** while generating **10.11% more completion tokens**. End-to-end attempt time rose **4.86%**, with a confidence interval spanning zero. [Efficiency results, definitions, and regeneration](efficiency.md)
 
 ![Task completion and 95% intervals](heldout.svg)
 
@@ -12,6 +14,8 @@ The original evaluation also included the published Harness Hub Pi adapter, conv
 | --- | --- |
 | [pairs.jsonl](pairs.jsonl) | One row per task in original evaluation order with its source cluster, seed, arm order, task digest, and numeric measurements for all three arms |
 | [summary.json](summary.json) | Original evaluation aggregate with all pairwise comparisons and full-precision confidence intervals |
+| [efficiency-pairs.jsonl](efficiency-pairs.jsonl) | Base and local adapter tokens, requests, turns, tool calls, time, MLX collection peaks, and capture coverage per task |
+| [efficiency.json](efficiency.json), [efficiency.svg](efficiency.svg) | Aggregate resource use, distributions, source-dataset bootstrap intervals, and paired comparisons |
 | [training.jsonl](training.jsonl) | Three warmup and 50 main group records, including per-attempt verifier scores, effective rewards, tool counts and safety counts, plus group timing, peak memory, and update diagnostics |
 | [provenance.json](provenance.json) | Training and evaluation settings, original artifact hashes, model and dataset revisions, seeds, and evaluated adapter hashes |
 | [heldout.svg](heldout.svg), [training.svg](training.svg) | Figures drawn from the released summary and group measurements |

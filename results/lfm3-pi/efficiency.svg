@@ -1,0 +1,206 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="410" viewBox="0 0 960 410" role="img" aria-labelledby="title description" font-family="system-ui, sans-serif">
+<title id="title">LFM3 and Pi efficiency</title>
+<desc id="description">Paired percentage changes with 95% confidence intervals for the local adapter versus the base model. Negative values indicate lower use.</desc>
+<rect width="960" height="410" fill="#fff"/>
+<text x="28" y="33" font-size="22" fill="#1b2d3e" font-weight="700" text-anchor="start">LFM3 BF16 + Pi efficiency</text>
+<text x="28" y="57" font-size="14" fill="#1b2d3e" font-weight="400" text-anchor="start">Local adapter change (%) with paired 95% confidence intervals</text>
+<text x="319" y="88" font-size="14" fill="#1b2d3e" font-weight="600" text-anchor="middle">All 150 task pairs</text>
+<line x1="214.00" y1="111" x2="214.00" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="214.0" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">-60</text>
+<line x1="240.25" y1="111" x2="240.25" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="240.25" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">-40</text>
+<line x1="266.50" y1="111" x2="266.50" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="266.5" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">-20</text>
+<line x1="292.75" y1="111" x2="292.75" y2="365" stroke="#899aaa" stroke-width="1"/>
+<text x="292.75" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">0</text>
+<line x1="319.00" y1="111" x2="319.00" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="319.0" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+20</text>
+<line x1="345.25" y1="111" x2="345.25" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="345.25" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+40</text>
+<line x1="371.50" y1="111" x2="371.50" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="371.5" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+60</text>
+<line x1="397.75" y1="111" x2="397.75" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="397.75" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+80</text>
+<line x1="424.00" y1="111" x2="424.00" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="424.0" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+100</text>
+<text x="28" y="132" font-size="12" fill="#1b2d3e" font-weight="400" text-anchor="start">Original tool calls</text>
+<g><title>Original tool calls -18.65% [-24.93%, -11.56%]</title>
+<line x1="260.02" y1="128" x2="277.57" y2="128" stroke="#146460" stroke-width="2.5"/>
+<line x1="260.02" y1="124" x2="260.02" y2="132" stroke="#146460" stroke-width="1.5"/>
+<line x1="277.57" y1="124" x2="277.57" y2="132" stroke="#146460" stroke-width="1.5"/>
+<circle cx="268.27" cy="128" r="4.1" fill="#146460"/></g>
+<text x="28" y="161" font-size="12" fill="#1b2d3e" font-weight="400" text-anchor="start">Model requests</text>
+<g><title>Model requests -13.32% [-18.61%, -7.35%]</title>
+<line x1="268.33" y1="157" x2="283.10" y2="157" stroke="#146460" stroke-width="2.5"/>
+<line x1="268.33" y1="153" x2="268.33" y2="161" stroke="#146460" stroke-width="1.5"/>
+<line x1="283.10" y1="153" x2="283.10" y2="161" stroke="#146460" stroke-width="1.5"/>
+<circle cx="275.27" cy="157" r="4.1" fill="#146460"/></g>
+<text x="28" y="190" font-size="12" fill="#1b2d3e" font-weight="400" text-anchor="start">Logical prompt tokens</text>
+<g><title>Logical prompt tokens -16.42% [-24.01%, -7.51%]</title>
+<line x1="261.23" y1="186" x2="282.89" y2="186" stroke="#146460" stroke-width="2.5"/>
+<line x1="261.23" y1="182" x2="261.23" y2="190" stroke="#146460" stroke-width="1.5"/>
+<line x1="282.89" y1="182" x2="282.89" y2="190" stroke="#146460" stroke-width="1.5"/>
+<circle cx="271.20" cy="186" r="4.1" fill="#146460"/></g>
+<text x="28" y="219" font-size="12" fill="#1b2d3e" font-weight="400" text-anchor="start">Generated tokens</text>
+<g><title>Generated tokens +10.11% [+0.19%, +22.03%]</title>
+<line x1="293.00" y1="215" x2="321.67" y2="215" stroke="#9b4b2e" stroke-width="2.5"/>
+<line x1="293.00" y1="211" x2="293.00" y2="219" stroke="#9b4b2e" stroke-width="1.5"/>
+<line x1="321.67" y1="211" x2="321.67" y2="219" stroke="#9b4b2e" stroke-width="1.5"/>
+<circle cx="306.02" cy="215" r="4.1" fill="#9b4b2e"/></g>
+<text x="28" y="248" font-size="12" fill="#1b2d3e" font-weight="400" text-anchor="start">Logical input and output</text>
+<g><title>Logical input and output -14.50% [-22.15%, -5.49%]</title>
+<line x1="263.68" y1="244" x2="285.55" y2="244" stroke="#146460" stroke-width="2.5"/>
+<line x1="263.68" y1="240" x2="263.68" y2="248" stroke="#146460" stroke-width="1.5"/>
+<line x1="285.55" y1="240" x2="285.55" y2="248" stroke="#146460" stroke-width="1.5"/>
+<circle cx="273.71" cy="244" r="4.1" fill="#146460"/></g>
+<text x="28" y="277" font-size="12" fill="#1b2d3e" font-weight="400" text-anchor="start">End-to-end time</text>
+<g><title>End-to-end time +4.86% [-3.08%, +14.16%]</title>
+<line x1="288.71" y1="273" x2="311.33" y2="273" stroke="#536578" stroke-width="2.5"/>
+<line x1="288.71" y1="269" x2="288.71" y2="277" stroke="#536578" stroke-width="1.5"/>
+<line x1="311.33" y1="269" x2="311.33" y2="277" stroke="#536578" stroke-width="1.5"/>
+<circle cx="299.12" cy="273" r="4.1" fill="#536578"/></g>
+<text x="28" y="306" font-size="12" fill="#1b2d3e" font-weight="400" text-anchor="start">Model request time</text>
+<g><title>Model request time +5.79% [-3.45%, +16.73%]</title>
+<line x1="288.22" y1="302" x2="314.70" y2="302" stroke="#536578" stroke-width="2.5"/>
+<line x1="288.22" y1="298" x2="288.22" y2="306" stroke="#536578" stroke-width="1.5"/>
+<line x1="314.70" y1="298" x2="314.70" y2="306" stroke="#536578" stroke-width="1.5"/>
+<circle cx="300.35" cy="302" r="4.1" fill="#536578"/></g>
+<text x="28" y="335" font-size="12" fill="#1b2d3e" font-weight="400" text-anchor="start">Tool execution time</text>
+<g><title>Tool execution time +5.93% [-16.66%, +37.71%]</title>
+<line x1="270.88" y1="331" x2="342.24" y2="331" stroke="#536578" stroke-width="2.5"/>
+<line x1="270.88" y1="327" x2="270.88" y2="335" stroke="#536578" stroke-width="1.5"/>
+<line x1="342.24" y1="327" x2="342.24" y2="335" stroke="#536578" stroke-width="1.5"/>
+<circle cx="300.53" cy="331" r="4.1" fill="#536578"/></g>
+<text x="28" y="364" font-size="12" fill="#1b2d3e" font-weight="400" text-anchor="start">MLX collection peak</text>
+<g><title>MLX collection peak +3.00% [+0.42%, +6.36%]</title>
+<line x1="293.31" y1="360" x2="301.09" y2="360" stroke="#9b4b2e" stroke-width="2.5"/>
+<line x1="293.31" y1="356" x2="293.31" y2="364" stroke="#9b4b2e" stroke-width="1.5"/>
+<line x1="301.09" y1="356" x2="301.09" y2="364" stroke="#9b4b2e" stroke-width="1.5"/>
+<circle cx="296.69" cy="360" r="4.1" fill="#9b4b2e"/></g>
+<text x="563" y="88" font-size="14" fill="#1b2d3e" font-weight="600" text-anchor="middle">59 shared successes</text>
+<line x1="458.00" y1="111" x2="458.00" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="458.0" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">-60</text>
+<line x1="484.25" y1="111" x2="484.25" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="484.25" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">-40</text>
+<line x1="510.50" y1="111" x2="510.50" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="510.5" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">-20</text>
+<line x1="536.75" y1="111" x2="536.75" y2="365" stroke="#899aaa" stroke-width="1"/>
+<text x="536.75" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">0</text>
+<line x1="563.00" y1="111" x2="563.00" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="563.0" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+20</text>
+<line x1="589.25" y1="111" x2="589.25" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="589.25" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+40</text>
+<line x1="615.50" y1="111" x2="615.50" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="615.5" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+60</text>
+<line x1="641.75" y1="111" x2="641.75" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="641.75" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+80</text>
+<line x1="668.00" y1="111" x2="668.00" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="668.0" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+100</text>
+<g><title>Original tool calls -21.79% [-28.91%, -13.85%]</title>
+<line x1="498.80" y1="128" x2="518.58" y2="128" stroke="#146460" stroke-width="2.5"/>
+<line x1="498.80" y1="124" x2="498.80" y2="132" stroke="#146460" stroke-width="1.5"/>
+<line x1="518.58" y1="124" x2="518.58" y2="132" stroke="#146460" stroke-width="1.5"/>
+<circle cx="508.16" cy="128" r="4.1" fill="#146460"/></g>
+<g><title>Model requests -17.10% [-22.77%, -10.94%]</title>
+<line x1="506.86" y1="157" x2="522.39" y2="157" stroke="#146460" stroke-width="2.5"/>
+<line x1="506.86" y1="153" x2="506.86" y2="161" stroke="#146460" stroke-width="1.5"/>
+<line x1="522.39" y1="153" x2="522.39" y2="161" stroke="#146460" stroke-width="1.5"/>
+<circle cx="514.30" cy="157" r="4.1" fill="#146460"/></g>
+<g><title>Logical prompt tokens -20.98% [-29.38%, -11.35%]</title>
+<line x1="498.19" y1="186" x2="521.85" y2="186" stroke="#146460" stroke-width="2.5"/>
+<line x1="498.19" y1="182" x2="498.19" y2="190" stroke="#146460" stroke-width="1.5"/>
+<line x1="521.85" y1="182" x2="521.85" y2="190" stroke="#146460" stroke-width="1.5"/>
+<circle cx="509.21" cy="186" r="4.1" fill="#146460"/></g>
+<g><title>Generated tokens +3.48% [-9.67%, +18.22%]</title>
+<line x1="524.06" y1="215" x2="560.66" y2="215" stroke="#536578" stroke-width="2.5"/>
+<line x1="524.06" y1="211" x2="524.06" y2="219" stroke="#536578" stroke-width="1.5"/>
+<line x1="560.66" y1="211" x2="560.66" y2="219" stroke="#536578" stroke-width="1.5"/>
+<circle cx="541.32" cy="215" r="4.1" fill="#536578"/></g>
+<g><title>Logical input and output -19.42% [-28.01%, -9.59%]</title>
+<line x1="499.98" y1="244" x2="524.16" y2="244" stroke="#146460" stroke-width="2.5"/>
+<line x1="499.98" y1="240" x2="499.98" y2="248" stroke="#146460" stroke-width="1.5"/>
+<line x1="524.16" y1="240" x2="524.16" y2="248" stroke="#146460" stroke-width="1.5"/>
+<circle cx="511.26" cy="244" r="4.1" fill="#146460"/></g>
+<g><title>End-to-end time +0.43% [-9.97%, +11.78%]</title>
+<line x1="523.66" y1="273" x2="552.21" y2="273" stroke="#536578" stroke-width="2.5"/>
+<line x1="523.66" y1="269" x2="523.66" y2="277" stroke="#536578" stroke-width="1.5"/>
+<line x1="552.21" y1="269" x2="552.21" y2="277" stroke="#536578" stroke-width="1.5"/>
+<circle cx="537.31" cy="273" r="4.1" fill="#536578"/></g>
+<g><title>Model request time -0.38% [-12.30%, +12.93%]</title>
+<line x1="520.60" y1="302" x2="553.72" y2="302" stroke="#536578" stroke-width="2.5"/>
+<line x1="520.60" y1="298" x2="520.60" y2="306" stroke="#536578" stroke-width="1.5"/>
+<line x1="553.72" y1="298" x2="553.72" y2="306" stroke="#536578" stroke-width="1.5"/>
+<circle cx="536.26" cy="302" r="4.1" fill="#536578"/></g>
+<g><title>Tool execution time +27.83% [-4.93%, +86.71%]</title>
+<line x1="530.28" y1="331" x2="650.55" y2="331" stroke="#536578" stroke-width="2.5"/>
+<line x1="530.28" y1="327" x2="530.28" y2="335" stroke="#536578" stroke-width="1.5"/>
+<line x1="650.55" y1="327" x2="650.55" y2="335" stroke="#536578" stroke-width="1.5"/>
+<circle cx="573.28" cy="331" r="4.1" fill="#536578"/></g>
+<g><title>MLX collection peak +5.46% [-0.09%, +13.20%]</title>
+<line x1="536.63" y1="360" x2="554.08" y2="360" stroke="#536578" stroke-width="2.5"/>
+<line x1="536.63" y1="356" x2="536.63" y2="364" stroke="#536578" stroke-width="1.5"/>
+<line x1="554.08" y1="356" x2="554.08" y2="364" stroke="#536578" stroke-width="1.5"/>
+<circle cx="543.91" cy="360" r="4.1" fill="#536578"/></g>
+<text x="807" y="88" font-size="14" fill="#1b2d3e" font-weight="600" text-anchor="middle">Per successful task</text>
+<line x1="702.00" y1="111" x2="702.00" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="702.0" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">-60</text>
+<line x1="728.25" y1="111" x2="728.25" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="728.25" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">-40</text>
+<line x1="754.50" y1="111" x2="754.50" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="754.5" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">-20</text>
+<line x1="780.75" y1="111" x2="780.75" y2="365" stroke="#899aaa" stroke-width="1"/>
+<text x="780.75" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">0</text>
+<line x1="807.00" y1="111" x2="807.00" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="807.0" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+20</text>
+<line x1="833.25" y1="111" x2="833.25" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="833.25" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+40</text>
+<line x1="859.50" y1="111" x2="859.50" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="859.5" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+60</text>
+<line x1="885.75" y1="111" x2="885.75" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="885.75" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+80</text>
+<line x1="912.00" y1="111" x2="912.00" y2="365" stroke="#dee5eb" stroke-width="1"/>
+<text x="912.0" y="105" font-size="10" fill="#1b2d3e" font-weight="400" text-anchor="middle">+100</text>
+<g><title>Original tool calls -29.43% [-40.22%, -17.37%]</title>
+<line x1="727.96" y1="128" x2="757.95" y2="128" stroke="#146460" stroke-width="2.5"/>
+<line x1="727.96" y1="124" x2="727.96" y2="132" stroke="#146460" stroke-width="1.5"/>
+<line x1="757.95" y1="124" x2="757.95" y2="132" stroke="#146460" stroke-width="1.5"/>
+<circle cx="742.12" cy="128" r="4.1" fill="#146460"/></g>
+<g><title>Model requests -24.81% [-35.76%, -12.69%]</title>
+<line x1="733.82" y1="157" x2="764.09" y2="157" stroke="#146460" stroke-width="2.5"/>
+<line x1="733.82" y1="153" x2="733.82" y2="161" stroke="#146460" stroke-width="1.5"/>
+<line x1="764.09" y1="153" x2="764.09" y2="161" stroke="#146460" stroke-width="1.5"/>
+<circle cx="748.19" cy="157" r="4.1" fill="#146460"/></g>
+<g><title>Logical prompt tokens -27.49% [-38.16%, -15.65%]</title>
+<line x1="730.67" y1="186" x2="760.20" y2="186" stroke="#146460" stroke-width="2.5"/>
+<line x1="730.67" y1="182" x2="730.67" y2="190" stroke="#146460" stroke-width="1.5"/>
+<line x1="760.20" y1="182" x2="760.20" y2="190" stroke="#146460" stroke-width="1.5"/>
+<circle cx="744.67" cy="186" r="4.1" fill="#146460"/></g>
+<g><title>Generated tokens -4.48% [-19.90%, +13.02%]</title>
+<line x1="754.63" y1="215" x2="797.84" y2="215" stroke="#536578" stroke-width="2.5"/>
+<line x1="754.63" y1="211" x2="754.63" y2="219" stroke="#536578" stroke-width="1.5"/>
+<line x1="797.84" y1="211" x2="797.84" y2="219" stroke="#536578" stroke-width="1.5"/>
+<circle cx="774.87" cy="215" r="4.1" fill="#536578"/></g>
+<g><title>Logical input and output -25.83% [-36.82%, -13.64%]</title>
+<line x1="732.42" y1="244" x2="762.84" y2="244" stroke="#146460" stroke-width="2.5"/>
+<line x1="732.42" y1="240" x2="732.42" y2="248" stroke="#146460" stroke-width="1.5"/>
+<line x1="762.84" y1="240" x2="762.84" y2="248" stroke="#146460" stroke-width="1.5"/>
+<circle cx="746.84" cy="244" r="4.1" fill="#146460"/></g>
+<g><title>End-to-end time -9.04% [-23.38%, +7.09%]</title>
+<line x1="750.06" y1="273" x2="790.05" y2="273" stroke="#536578" stroke-width="2.5"/>
+<line x1="750.06" y1="269" x2="750.06" y2="277" stroke="#536578" stroke-width="1.5"/>
+<line x1="790.05" y1="269" x2="790.05" y2="277" stroke="#536578" stroke-width="1.5"/>
+<circle cx="768.88" cy="273" r="4.1" fill="#536578"/></g>
+<g><title>Model request time -8.23% [-22.77%, +8.35%]</title>
+<line x1="750.87" y1="302" x2="791.71" y2="302" stroke="#536578" stroke-width="2.5"/>
+<line x1="750.87" y1="298" x2="750.87" y2="306" stroke="#536578" stroke-width="1.5"/>
+<line x1="791.71" y1="298" x2="791.71" y2="306" stroke="#536578" stroke-width="1.5"/>
+<circle cx="769.95" cy="302" r="4.1" fill="#536578"/></g>
+<g><title>Tool execution time -8.11% [-32.22%, +23.95%]</title>
+<line x1="738.46" y1="331" x2="812.19" y2="331" stroke="#536578" stroke-width="2.5"/>
+<line x1="738.46" y1="327" x2="738.46" y2="335" stroke="#536578" stroke-width="1.5"/>
+<line x1="812.19" y1="327" x2="812.19" y2="335" stroke="#536578" stroke-width="1.5"/>
+<circle cx="770.10" cy="331" r="4.1" fill="#536578"/></g>
+<rect x="699" y="349" width="216" height="22" fill="#fff"/>
+<text x="807" y="364" font-size="12" fill="#48596a" font-weight="400" text-anchor="middle">—</text>
+<text x="28" y="391" font-size="12" fill="#48596a" font-weight="400" text-anchor="start">Negative values indicate lower use. Per-success totals include attempts that failed.</text>
+</svg>

@@ -25,6 +25,8 @@ ROLLOUT = {
     "safe_agents": "enforce",
 }
 EVAL_SEED = 7297
+BOOTSTRAP_SEED = 8921
+BOOTSTRAP_RESAMPLES = 10000
 
 
 def save_json(path, data):
@@ -121,6 +123,19 @@ def score(policy, harness, path, output, seed, adapter):
     return outcome
 
 
+def source_resamples(sources):
+    rng = random.Random(BOOTSTRAP_SEED)
+    for _ in range(BOOTSTRAP_RESAMPLES):
+        yield rng.choices(sources, k=len(sources))
+
+
+def interval95(values):
+    if len(values) < 2:
+        return None
+    boundaries = quantiles(values, n=40)
+    return [boundaries[0], boundaries[-1]]
+
+
 def summarize(rows):
     groups = defaultdict(lambda: [0, 0, 0, 0])
     base_passes = adapter_passes = joint = 0
@@ -140,18 +155,11 @@ def summarize(rows):
     sources = list(groups.values())
     _, _, base_calls, adapter_calls = map(sum, zip(*sources))
     accuracy, calls = [], []
-    rng = random.Random(8921)
-    for _ in range(10000):
-        n, delta, before, after = map(sum, zip(*rng.choices(sources, k=len(sources))))
+    for sample in source_resamples(sources):
+        n, delta, before, after = map(sum, zip(*sample))
         accuracy.append(100 * delta / n)
         if before:
             calls.append(100 * (after / before - 1))
-
-    def interval(values):
-        if len(values) < 2:
-            return None
-        boundaries = quantiles(values, n=40)
-        return [boundaries[0], boundaries[-1]]
 
     return {
         "tasks": len(rows),
@@ -159,12 +167,12 @@ def summarize(rows):
         "base_passes": base_passes,
         "adapter_passes": adapter_passes,
         "pass_rate_change_points": 100 * (adapter_passes - base_passes) / len(rows),
-        "pass_rate_change_ci95": interval(accuracy),
+        "pass_rate_change_ci95": interval95(accuracy),
         "shared_successes": joint,
         "base_calls_on_shared_successes": base_calls,
         "adapter_calls_on_shared_successes": adapter_calls,
         "tool_call_change_percent": 100 * (adapter_calls / base_calls - 1) if base_calls else None,
-        "tool_call_change_ci95": interval(calls),
+        "tool_call_change_ci95": interval95(calls),
     }
 
 
