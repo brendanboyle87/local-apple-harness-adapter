@@ -81,3 +81,73 @@ def test_lfm3_cached_forward_and_lora_targets():
         "w2",
         "w3",
     }
+
+
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_collect_only_sampler_uses_existing_prefill_callback_and_counts_reasoning(
+    monkeypatch, interrupted
+):
+    from apple_harness_adapter.backends import base
+    from apple_harness_adapter.endpoint import chat_completion
+    from apple_harness_adapter.telemetry import ModelRequest
+
+    policy = LFM3Policy.__new__(LFM3Policy)
+    policy.model_name = "fixture"
+    policy.model = object()
+    policy.prompt_ids = lambda *_args: [1, 4]
+
+    class Tokenizer:
+        eos_token_ids = (6,)
+
+        def encode(self, text, *, add_special_tokens):
+            assert not add_special_tokens
+            return [{"<think>": 4, "</think>": 5}[text]]
+
+        def decode(self, tokens, *, skip_special_tokens):
+            assert not skip_special_tokens
+            return "".join({0: "Plan.", 4: "<think>", 5: "</think>"}[token] for token in tokens)
+
+    policy.tokenizer = Tokenizer()
+
+    def generate(
+        prompt, model, *, max_tokens, sampler, stream, prefill_step_size, prompt_progress_callback
+    ):
+        assert prompt.tolist() == [1, 4]
+        assert model is policy.model and max_tokens == 3
+        prompt_progress_callback(0, 2)
+        prompt_progress_callback(2, 2)
+        for token in (0, 5, 6):
+            yield token, mx.zeros((7,))
+            if interrupted:
+                raise RuntimeError("fixture sampling failure")
+
+    monkeypatch.setattr(base, "generate_step", generate)
+    request = ModelRequest(relay_id=0, endpoint_id=0)
+
+    def complete():
+        return chat_completion(
+            policy,
+            {"messages": [], "temperature": 0.8},
+            max_context=5,
+            max_output=3,
+            effort="low",
+            telemetry=request,
+        )
+
+    if interrupted:
+        with pytest.raises(RuntimeError, match="fixture sampling failure"):
+            complete()
+        assert request.observed_sampled_tokens == 1
+        assert request.sampled_tokens is request.reasoning_tokens is None
+        assert request.decode_seconds >= 0
+        return
+
+    payload = complete()
+    assert payload["choices"][0]["token_ids"] == [0, 5, 6]
+    assert payload["choices"][0]["finish_reason"] == "stop"
+    assert request.sampled_tokens == 3 and request.reasoning_tokens == 1
+    assert request.prefill_processed_tokens == 2 and request.prefill_reused_tokens == 0
+    assert 0 <= request.prefill_to_first_token_seconds <= request.inference_seconds
+    assert request.decode_seconds == pytest.approx(
+        request.inference_seconds - request.prefill_to_first_token_seconds
+    )

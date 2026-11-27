@@ -165,8 +165,8 @@ def test_failed_guard_invalidates_the_attempt_even_if_the_verifier_passes(monkey
 
 
 @pytest.mark.skipif(os.getenv("APPLE_HARNESS_DOCKER_TEST") != "1", reason="requires Docker")
-@pytest.mark.parametrize("context_stop", [False, True])
-def test_real_pi_executes_allowed_call_and_reconciles_blocked_call(tmp_path, context_stop):
+@pytest.mark.parametrize("budget", ["none", "rejected", "clipped", "call_limit"])
+def test_real_pi_executes_allowed_call_and_reconciles_blocked_call(tmp_path, budget):
     from apple_harness_adapter.backends.inkling_chat import parse_completion
     from apple_harness_adapter.harbor import collect_harbor
 
@@ -204,18 +204,21 @@ def test_real_pi_executes_allowed_call_and_reconciles_blocked_call(tmp_path, con
         model_name="inkling-2-mini",
         prompt_ids=prompt_ids,
         is_stop_token=lambda token: token == 32,
-        sample=lambda ids, _limit, temp: Turn(tuple(ids), (31, 32), (-0.1, -0.2), temp),
+        sample=lambda ids, limit, temp: Turn(
+            tuple(ids), (31, 32)[:limit], (-0.1, -0.2)[:limit], temp
+        ),
         parse_completion=lambda _tokens, tools, *, include_undeclared, effort: parse_completion(
             next(completions), tools, include_undeclared=include_undeclared
         ),
     )
     options = SimpleNamespace(
         safe_agents="enforce",
+        collect_only=True,
         attempts=1,
         reward_key="",
-        max_turns=3,
+        max_turns=1 if budget == "call_limit" else 3,
         max_output=128,
-        max_context=6 if context_stop else 4096,
+        max_context={"rejected": 6, "clipped": 7}.get(budget, 4096),
         effort="none",
         temperature=0.8,
     )
@@ -232,12 +235,37 @@ def test_real_pi_executes_allowed_call_and_reconciles_blocked_call(tmp_path, con
 
     (record,) = records
     assert record["atif"] == "match" and record["ok"]
-    assert record["budget_stop_count"] == int(context_stop)
-    assert len(rollout.turns) == (1 if context_stop else 2)
+    assert record["budget_stop_count"] == int(budget != "none")
+    assert len(rollout.turns) == (2 if budget == "none" else 1)
     assert record["reward"] == 1.0 and record["effective_reward"] == 0
     assert rollout.tool_calls == 1 and rollout.blocked_tool_calls == 1
     assert rollout.turns[0].completion_token_ids == (31, 32)
     assert rollout.turns[0].old_logprobs == pytest.approx((-0.1, -0.2))
     assert "[safeagents]" in record["turns"][0]["text"]
-    assert "[safeagents]" in json.dumps(prompts[1])
+    if budget != "call_limit":
+        assert "[safeagents]" in json.dumps(prompts[1])
     assert [event["verdict"] for event in record["safe_agents"]["calls"]] == ["passed", "blocked"]
+    efficiency = record["efficiency"]
+    requests = [
+        json.loads(line)
+        for line in (tmp_path / "attempt-01.requests.jsonl").read_text().splitlines()
+    ]
+    assert [request["stage"] for request in requests[:2]] == ["endpoint", "relay"]
+    assert all(request["relay_id"] == 0 for request in requests[:2])
+    assert requests[0]["response_id"] == requests[1]["response_id"]
+    assert requests[-1]["budget_reply"] == (budget != "none")
+    assert efficiency["relay_requests"] == 2
+    assert efficiency["backend_requests"] == (1 if budget == "call_limit" else 2)
+    assert efficiency["generation_requests"] == (2 if budget in ("none", "clipped") else 1)
+    assert efficiency["agent_turns"] == (2 if budget == "none" else 1)
+    assert efficiency["prompt_tokens"] == (8 if budget in ("none", "clipped") else 2)
+    assert efficiency["completion_tokens"] == {"none": 4, "clipped": 3}.get(budget, 2)
+    assert efficiency["tool_executions"] == 1
+    if budget == "clipped":
+        assert requests[-2]["limit_reason"] == "context"
+        assert requests[-2]["sampled_tokens"] == 1
+        assert requests[-2]["response_id"] != requests[-1]["response_id"]
+    if budget == "rejected":
+        assert requests[-2]["outcome"] == "context_rejected"
+        assert requests[-2]["rendered_prompt_tokens"] == 6
+        assert requests[-2]["sampled_tokens"] is None

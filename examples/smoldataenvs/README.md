@@ -49,3 +49,5 @@ uv run --no-sync python examples/smoldataenvs/run.py evaluate \
 ```
 
 Point `--adapter` at `runs/smol-breadth/group-0050/adapter` to evaluate the broader run, or unpack either [release download](https://github.com/brendanboyle87/local-apple-harness-adapter/releases/tag/v0.1.0) and pass its adapter directory. Read `summary.json` for pass counts, tool calls on shared successes, and source-dataset bootstrap intervals. Repeating the evaluation command reuses completed measurements. Sampling and environment rebuilds can change individual outcomes. See the [14-task evidence](../../results/lfm3-pi/README.md) and [30-task evidence](../../results/lfm3-pi-breadth/README.md) for recorded measurements.
+
+The `efficiency` section of `summary.json` compares tokens, requests, time, and allocator peaks using the collected attempt measurements. [Telemetry definitions and file paths](../../docs/evaluation-telemetry.md)

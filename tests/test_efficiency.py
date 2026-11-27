@@ -34,3 +34,43 @@ def test_paired_reasoning_uses_complete_pairs_without_filling_missing_values(eff
     assert result["mean_change_percent_ci95"] == [100, 100]
     missing = efficiency.cohort_statistics(rows[:1], "reasoning_tokens", [["a"], ["a"]])
     assert missing["base"] is missing["local"] is missing["mean_change_percent_ci95"] is None
+
+
+def test_evaluation_summary_keeps_old_rows_and_exposes_incomplete_coverage(efficiency, monkeypatch):
+    run = import_module("run")
+    monkeypatch.setattr(run, "source_resamples", lambda _sources: iter([["a", "b"], ["a", "a"]]))
+    rows = [
+        {
+            "source": "a",
+            "base": {
+                "reward": 1,
+                "calls": 1,
+                "task_seconds": 2,
+                "efficiency": {"prompt_tokens": 5},
+            },
+            "adapter": {
+                "reward": 1,
+                "calls": 1,
+                "task_seconds": 1,
+                "efficiency": {"prompt_tokens": 3},
+            },
+        },
+        {
+            "source": "b",
+            "base": {
+                "reward": 0,
+                "calls": 1,
+                "task_seconds": 4,
+                "efficiency": {"prompt_tokens": 5},
+            },
+            "adapter": {"reward": 1, "calls": 1, "task_seconds": 2},
+        },
+    ]
+    summary = run.summarize_measured_resources(rows)
+    all_tasks = summary["all_tasks"]
+    assert all_tasks["arms"]["adapter"]["metrics"]["prompt_tokens"]["observed_attempts"] == 1
+    assert all_tasks["arms"]["adapter"]["metrics"]["prompt_tokens"]["total"] is None
+    assert all_tasks["paired"]["prompt_tokens"]["mean_change_ci95"] is None
+    assert all_tasks["paired"]["task_seconds"]["mean_change_percent"] == -50
+    assert all_tasks["paired"]["task_seconds"]["per_success_change_percent"] == -75
+    assert summary["shared_successes"]["paired"]["prompt_tokens"]["mean_change_percent"] == -40

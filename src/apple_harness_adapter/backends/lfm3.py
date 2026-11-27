@@ -1,5 +1,6 @@
 """Pi-compatible LFM3 chat and the Hugging Face LoRA target set."""
 
+from functools import cached_property
 from pathlib import Path
 
 import mlx.nn as nn
@@ -51,6 +52,30 @@ class LFM3Policy(MLXPolicy):
             thinking=effort != "none",
             include_undeclared=include_undeclared,
         )
+
+    @cached_property
+    def thinking_markers(self):
+        return tuple(
+            tuple(self.tokenizer.encode(marker, add_special_tokens=False))
+            for marker in ("<think>", "</think>")
+        )
+
+    def reasoning_token_count(self, prompt, completion, message):
+        if "reasoning_content" not in message:
+            return 0
+        opening, closing = self.thinking_markers
+        if len(opening) != 1 or len(closing) != 1:
+            return None
+        span = completion[:-1] if self.is_stop_token(completion[-1]) else completion
+        if span[:1] == opening:
+            span = span[1:]
+        elif prompt[-1] != opening[0]:
+            return None
+        if closing[0] in span:
+            span = span[: span.index(closing[0])]
+        if self.decode(span).lstrip() != message["reasoning_content"]:
+            return None
+        return len(span)
 
 
 def parse_completion(

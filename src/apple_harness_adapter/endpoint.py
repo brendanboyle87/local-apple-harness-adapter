@@ -1,7 +1,10 @@
 """Chat-completions endpoint with exact sampled IDs and log probabilities."""
 
 import json
+from time import monotonic
 from uuid import uuid4
+
+from .telemetry import MODEL_REQUEST, ModelRequest
 
 
 class ContextBudgetExhausted(ValueError):
@@ -24,6 +27,7 @@ def chat_completion(
     max_output: int,
     effort: str,
     include_undeclared: bool = False,
+    telemetry: ModelRequest | None = None,
 ) -> dict:
     if request.get("stream") or request.get("n", 1) != 1:
         raise ValueError("The capture endpoint requires one nonstreaming choice")
@@ -48,7 +52,15 @@ def chat_completion(
             message["tool_calls"] = calls
         messages.append(message)
 
-    prompt = policy.prompt_ids(messages, tools, effort)
+    if telemetry is None:
+        prompt = policy.prompt_ids(messages, tools, effort)
+    else:
+        started = monotonic()
+        try:
+            prompt = policy.prompt_ids(messages, tools, effort)
+            telemetry.rendered_prompt_tokens = len(prompt)
+        finally:
+            telemetry.tokenization_seconds = monotonic() - started
     requested = request.get("max_completion_tokens") or request.get("max_tokens") or max_output
     remaining = max_context - len(prompt)
     if remaining < 1:
@@ -58,7 +70,25 @@ def chat_completion(
     limit = min(requested, max_output, remaining)
     if limit < 1:
         raise ValueError("The completion limit must allow at least one token")
-    turn = policy.sample(prompt, limit, float(request.get("temperature", 1)))
+    temperature = float(request.get("temperature", 1))
+    if telemetry is None:
+        turn = policy.sample(prompt, limit, temperature)
+    else:
+        started = monotonic()
+        token = MODEL_REQUEST.set(telemetry)
+        try:
+            telemetry.sampling_started = True
+            turn = policy.sample(prompt, limit, temperature)
+            telemetry.sampled_tokens = len(turn.completion_token_ids)
+            telemetry.observed_sampled_tokens = telemetry.sampled_tokens
+        finally:
+            telemetry.inference_seconds = monotonic() - started
+            if telemetry.prefill_to_first_token_seconds is not None:
+                telemetry.decode_seconds = (
+                    telemetry.inference_seconds - telemetry.prefill_to_first_token_seconds
+                )
+            MODEL_REQUEST.reset(token)
+        postprocess_started = monotonic()
     message = policy.parse_completion(
         turn.completion_token_ids, tools, include_undeclared=include_undeclared, effort=effort
     )
@@ -71,7 +101,7 @@ def chat_completion(
         {"token": f"token_id:{token}", "logprob": logprob, "bytes": None, "top_logprobs": []}
         for token, logprob in zip(turn.completion_token_ids, turn.old_logprobs, strict=True)
     ]
-    return {
+    payload = {
         "id": f"chatcmpl-{uuid4().hex}",
         "object": "chat.completion",
         "model": policy.model_name,
@@ -91,3 +121,15 @@ def chat_completion(
             "total_tokens": len(prompt) + len(logprobs),
         },
     }
+    if telemetry is not None:
+        telemetry.response_id = payload["id"]
+        telemetry.finish_reason = finish
+        if finish == "length":
+            telemetry.limit_reason = (
+                "context" if remaining < min(requested, max_output) else "output"
+            )
+        reasoning_count = getattr(policy, "reasoning_token_count", None)
+        if reasoning_count is not None:
+            telemetry.reasoning_tokens = reasoning_count(prompt, turn.completion_token_ids, message)
+        telemetry.postprocess_seconds = monotonic() - postprocess_started
+    return payload

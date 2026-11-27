@@ -88,6 +88,7 @@ def test_opencode_executes_a_tool_and_reconciles_local_tokens(tmp_path):
     )
     args = SimpleNamespace(
         harness="opencode",
+        collect_only=True,
         safe_agents="enforce",
         attempts=1,
         reward_key="",
@@ -99,10 +100,17 @@ def test_opencode_executes_a_tool_and_reconciles_local_tokens(tmp_path):
     )
     records = []
     (rollout,) = asyncio.run(
-        collect_harbor(policy, args, tmp_path, lambda _index, record: records.append(record), task)
+        collect_harbor(
+            policy, args, tmp_path / "trials", lambda _index, record: records.append(record), task
+        )
     )
     (record,) = records
     assert record["atif"] == "match" and record["ok"]
     assert rollout.correctness == 1.0 and rollout.tool_calls == 1
     assert rollout.turns[0].completion_token_ids == (31, 32)
     assert rollout.turns[0].old_logprobs == pytest.approx((-0.1, -0.2))
+    efficiency = record["efficiency"]
+    assert efficiency["generation_requests"] >= len(rollout.turns)
+    assert efficiency["agent_turns_source"] == "retained_capture"
+    assert efficiency["tool_calls"] == 1
+    assert efficiency["tool_execution_seconds"] is None

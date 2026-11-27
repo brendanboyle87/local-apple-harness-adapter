@@ -41,7 +41,7 @@ The first run downloads the pinned model and builds the task image. Rollouts run
 
 ## Quick start
 
-Run a file-writing task with Pi. Inspect `runs/pi-smoke/group-0001/metrics.json` for the verifier score and tool-call count.
+Run a file-writing task with Pi. Inspect `runs/pi-smoke/group-0001/metrics.json` for the verifier score, tool calls, and efficiency measurements. [Evaluation telemetry fields](docs/evaluation-telemetry.md)
 
 ```sh
 uv run --no-sync apple-harness --backend lfm3 harbor --harness pi \

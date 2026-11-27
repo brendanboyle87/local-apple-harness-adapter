@@ -3,6 +3,7 @@
 import json
 from math import isfinite
 from pathlib import Path
+from time import monotonic
 
 import mlx.core as mx
 import mlx.nn as nn
@@ -14,6 +15,7 @@ from mlx_lm.models.cache import make_prompt_cache
 from mlx_lm.tuner.utils import linear_to_lora_layers
 from mlx_lm.utils import DEFAULT_ALLOW_PATTERNS
 
+from ..telemetry import MODEL_REQUEST
 from ..trace import Turn
 
 
@@ -107,6 +109,18 @@ class MLXPolicy:
             return mx.random.categorical(logprobs / temperature, key=key)
 
         tokens, logprobs = [], []
+        request = MODEL_REQUEST.get()
+        progress_callback = None
+        if request is not None:
+            # generate_step builds a fresh cache when called without prompt_cache.
+            started = monotonic()
+            request.prefill_reused_tokens = 0
+
+            def progress_callback(processed, total):
+                request.prefill_processed_tokens = processed
+                if processed == total:
+                    request.prefill_to_first_token_seconds = monotonic() - started
+
         stream = generate_step(
             mx.array(prompt),
             self.model,
@@ -114,13 +128,18 @@ class MLXPolicy:
             sampler=sampler,
             stream=mx.default_stream(mx.default_device()),
             prefill_step_size=self.prefill_step_size,
+            prompt_progress_callback=progress_callback,
         )
-        for token, raw_logprobs in stream:
-            scaled = raw_logprobs / temperature
-            logprobs.append((scaled[token] - mx.logsumexp(scaled)).item())
-            tokens.append(token)
-            if self.is_stop_token(token):
-                break
+        try:
+            for token, raw_logprobs in stream:
+                tokens.append(token)
+                scaled = raw_logprobs / temperature
+                logprobs.append((scaled[token] - mx.logsumexp(scaled)).item())
+                if self.is_stop_token(token):
+                    break
+        finally:
+            if request is not None:
+                request.observed_sampled_tokens = len(tokens)
         return Turn(tuple(prompt), tuple(tokens), tuple(logprobs), temperature)
 
     def decode(self, tokens: tuple[int, ...]) -> str:

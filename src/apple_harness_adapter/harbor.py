@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import asdict
 from importlib.resources import files
+from time import monotonic
 
 import httpx
 from harbor.agents.installed.opencode import OpenCode
@@ -22,6 +23,7 @@ from safeagents.guard import Config
 
 from .endpoint import ContextBudgetExhausted, chat_completion
 from .safe_agents import SafetyAudit, TrainingScanner
+from .telemetry import ATTEMPT, RELAY_ID, AttemptTelemetry
 from .trace import Rollout, Turn
 
 PI_VERSION = "1.5.2"
@@ -148,24 +150,38 @@ class OfflineRelay:
     @staticmethod
     async def _forward(process) -> None:
         client = CAPTURE_CLIENT.get()
+        telemetry = ATTEMPT.get()
         while line := await process.stdout.readline():
             request = json.loads(line)
-            response = await client.post(
-                "/v1/chat/completions",
-                content=request["body"],
-                headers={
-                    "Authorization": request.get("authorization", ""),
-                    "Content-Type": "application/json",
-                },
-            )
-            frame = {
-                "id": request["id"],
-                "status": response.status_code,
-                "contentType": response.headers.get("Content-Type", "application/json"),
-                "body": response.text,
-            }
-            process.stdin.write(json.dumps(frame).encode() + b"\n")
-            await process.stdin.drain()
+            started = monotonic() if telemetry is not None else None
+            token = RELAY_ID.set(request["id"]) if telemetry is not None else None
+            response = None
+            outcome = "error"
+            try:
+                response = await client.post(
+                    "/v1/chat/completions",
+                    content=request["body"],
+                    headers={
+                        "Authorization": request.get("authorization", ""),
+                        "Content-Type": "application/json",
+                    },
+                )
+                frame = {
+                    "id": request["id"],
+                    "status": response.status_code,
+                    "contentType": response.headers.get("Content-Type", "application/json"),
+                    "body": response.text,
+                }
+                process.stdin.write(json.dumps(frame).encode() + b"\n")
+                await process.stdin.drain()
+                outcome = "returned"
+            except asyncio.CancelledError:
+                outcome = "cancelled"
+                raise
+            finally:
+                if telemetry is not None:
+                    RELAY_ID.reset(token)
+                    telemetry.record_relay(request["id"], monotonic() - started, response, outcome)
 
 
 class OfflinePi(OfflineRelay, InterceptPi):
@@ -221,39 +237,85 @@ def training_rollout(result, blocked_tool_calls: int = 0) -> Rollout:
 
 
 async def collect_harbor(policy, args, trials_dir, save_attempt, task) -> list[Rollout]:
-    harness = HARNESSES[getattr(args, "harness", DEFAULT_HARNESS)]
+    harness_name = getattr(args, "harness", DEFAULT_HARNESS)
+    harness = HARNESSES[harness_name]
     safety_attempt = ContextVar("safety_attempt")
     config = Config(scanner=TrainingScanner()) if args.safe_agents != "off" else None
+
+    async def complete_request(request, audit, attempt_telemetry=None, measurement=None):
+        if audit.error:
+            return "safety_error", httpx.Response(
+                500, json={"error": {"message": "SafeAgents review failed"}}
+            )
+        try:
+            body = json.loads(request.content)
+            if attempt_telemetry is not None:
+                attempt_telemetry.begin_mlx_scope(measurement)
+            try:
+                payload = chat_completion(
+                    policy,
+                    body,
+                    max_context=args.max_context,
+                    max_output=args.max_output,
+                    effort=args.effort,
+                    include_undeclared=args.safe_agents == "enforce",
+                    **({"telemetry": measurement} if measurement is not None else {}),
+                )
+            finally:
+                if attempt_telemetry is not None:
+                    attempt_telemetry.end_mlx_scope(measurement)
+        except ContextBudgetExhausted as exc:
+            return "context_rejected", httpx.Response(
+                400, json={"error": {"code": "context_length_exceeded", "message": str(exc)}}
+            )
+        except (ValueError, KeyError, TypeError) as exc:
+            outcome = "invalid_request"
+            if measurement is not None and measurement.sampling_started:
+                outcome = (
+                    "sampling_error" if measurement.sampled_tokens is None else "invalid_completion"
+                )
+            return outcome, httpx.Response(400, json={"error": {"message": str(exc)}})
+        if config is not None:
+            started = monotonic() if measurement is not None else None
+            try:
+                await audit.review_response(body, payload, config)
+            except Exception as exc:
+                audit.error = f"{type(exc).__name__}: {exc}"
+                return "safety_error", httpx.Response(
+                    500, json={"error": {"message": "SafeAgents review failed"}}
+                )
+            finally:
+                if measurement is not None:
+                    measurement.safety_review_seconds = monotonic() - started
+        return "returned", httpx.Response(200, json=payload)
 
     async def inference_request(request):
         if request.method != "POST" or request.url.path != "/v1/chat/completions":
             return httpx.Response(404)
         audit = safety_attempt.get()
-        if audit.error:
-            return httpx.Response(500, json={"error": {"message": "SafeAgents review failed"}})
+        telemetry = ATTEMPT.get()
+        if telemetry is None:
+            _, response = await complete_request(request, audit)
+            return response
+        started = monotonic()
+        measurement = telemetry.start_model_request(RELAY_ID.get())
         try:
-            body = json.loads(request.content)
-            payload = chat_completion(
-                policy,
-                body,
-                max_context=args.max_context,
-                max_output=args.max_output,
-                effort=args.effort,
-                include_undeclared=args.safe_agents == "enforce",
+            measurement.outcome, response = await complete_request(
+                request, audit, telemetry, measurement
             )
-        except ContextBudgetExhausted as exc:
-            return httpx.Response(
-                400, json={"error": {"code": "context_length_exceeded", "message": str(exc)}}
-            )
-        except (ValueError, KeyError, TypeError) as exc:
-            return httpx.Response(400, json={"error": {"message": str(exc)}})
-        if config is not None:
-            try:
-                await audit.review_response(body, payload, config)
-            except Exception as exc:
-                audit.error = f"{type(exc).__name__}: {exc}"
-                return httpx.Response(500, json={"error": {"message": "SafeAgents review failed"}})
-        return httpx.Response(200, json=payload)
+            measurement.http_status = response.status_code
+            return response
+        except asyncio.CancelledError:
+            measurement.outcome = "cancelled"
+            raise
+        finally:
+            measurement.endpoint_seconds = monotonic() - started
+            # Persist upstream counts before OpenEnv can substitute a synthetic budget reply.
+            telemetry.record_endpoint(measurement)
+
+    memory = None
+    if getattr(args, "collect_only", False):
+        import mlx.core as memory
 
     with offline_docker():
         engine = "http://mlx.local/v1"
@@ -280,6 +342,14 @@ async def collect_harbor(policy, args, trials_dir, save_attempt, task) -> list[R
                 for attempt in range(args.attempts):
                     audit = SafetyAudit(args.safe_agents)
                     attempt_token = safety_attempt.set(audit)
+                    telemetry = (
+                        AttemptTelemetry(
+                            trials_dir.parent / f"attempt-{attempt + 1:02d}.requests.jsonl", memory
+                        )
+                        if memory is not None
+                        else None
+                    )
+                    telemetry_token = ATTEMPT.set(telemetry)
                     try:
                         result = await run_rollout(
                             task_dir=task,
@@ -295,12 +365,33 @@ async def collect_harbor(policy, args, trials_dir, save_attempt, task) -> list[R
                             sampling={"temperature": args.temperature},
                             agent_step_limit=args.max_turns,
                         )
+                    except BaseException as exc:
+                        if telemetry is not None:
+                            save_attempt(
+                                attempt,
+                                {
+                                    "task_name": task.name,
+                                    "ok": False,
+                                    "exception_type": type(exc).__name__,
+                                    "reward": None,
+                                    "effective_reward": None,
+                                    "turns": [],
+                                    "safe_agents": asdict(audit),
+                                    "efficiency": telemetry.finish(None, None, harness_name),
+                                },
+                            )
+                        raise
                     finally:
+                        ATTEMPT.reset(telemetry_token)
                         safety_attempt.reset(attempt_token)
                     record = result.model_dump(mode="json") | {
                         "safe_agents": asdict(audit),
                         "effective_reward": None,
                     }
+                    if telemetry is not None:
+                        record["efficiency"] = telemetry.finish(
+                            result, trials_dir / result.trial_name, harness_name
+                        )
                     try:
                         if audit.error:
                             record["ok"] = False

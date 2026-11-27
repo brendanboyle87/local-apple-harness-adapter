@@ -8,11 +8,13 @@ import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
-from statistics import quantiles
+from statistics import mean, median, quantiles
+from time import monotonic
 from types import SimpleNamespace
 from uuid import uuid4
 
 from apple_harness_adapter.backends import DEFAULT_MODELS, DEFAULT_REVISIONS
+from apple_harness_adapter.telemetry import observed_sum
 
 MODEL = DEFAULT_MODELS["lfm3"]
 REVISION = DEFAULT_REVISIONS[MODEL]
@@ -76,6 +78,7 @@ def score(policy, harness, path, output, seed, adapter):
         return json.loads(measurement.read_text())
     if output.exists():
         output.rename(output.with_name(f"{output.name}-interrupted-{uuid4().hex[:8]}"))
+    started = monotonic()
     policy.sampling_key = mx.random.key(seed)
     options = SimpleNamespace(
         backend="lfm3",
@@ -106,6 +109,9 @@ def score(policy, harness, path, output, seed, adapter):
             "calls": result["tool_calls"][0],
             "timed_out": False,
         }
+        measurements = result.get("efficiency")
+        if measurements is not None:
+            (outcome["efficiency"],) = measurements
     except RuntimeError:
         trace = output / "group-0001/attempt-01.json"
         if not trace.is_file():
@@ -119,6 +125,11 @@ def score(policy, harness, path, output, seed, adapter):
             if turn["role"] == "agent" and not turn["discarded"]
         )
         outcome = {"reward": record["reward"] or 0.0, "calls": calls, "timed_out": True}
+        if "efficiency" in record:
+            outcome["efficiency"] = {
+                key: value for key, value in record["efficiency"].items() if key != "tool_spans"
+            }
+    outcome["task_seconds"] = monotonic() - started
     save_json(measurement, outcome)
     return outcome
 
@@ -174,6 +185,129 @@ def summarize(rows):
         "tool_call_change_percent": 100 * (adapter_calls / base_calls - 1) if base_calls else None,
         "tool_call_change_ci95": interval95(calls),
     }
+
+
+def resource_value(arm, key):
+    if key == "task_seconds":
+        return arm.get(key)
+    if key == "tool_calls":
+        return arm["calls"]
+    return arm.get("efficiency", {}).get(key)
+
+
+def paired_resource_changes(group, key, samples, additive):
+    changes = {"mean_change_percent": None, "mean_change_ci95": None}
+    if additive:
+        changes |= {"per_success_change_percent": None, "per_success_change_ci95": None}
+    sources = defaultdict(lambda: [0, 0, 0, 0])
+    for row in group:
+        before, after = (resource_value(row[arm], key) for arm in ("base", "adapter"))
+        if before is None or after is None:
+            return changes
+        values = sources[row["source"]]
+        values[0] += before
+        values[1] += after
+        values[2] += row["base"]["reward"] == 1
+        values[3] += row["adapter"]["reward"] == 1
+    if not sources:
+        return changes
+
+    def relative(before, after):
+        return 100 * (after / before - 1)
+
+    before, after, base_passes, adapter_passes = map(sum, zip(*sources.values()))
+    if not before:
+        return changes
+    ratios, per_success = [], []
+    for sample in samples:
+        b, a, bp, ap = map(sum, zip(*(sources.get(source, (0, 0, 0, 0)) for source in sample)))
+        if b:
+            ratios.append(relative(b, a))
+            if additive and bp and ap:
+                per_success.append(relative(b / bp, a / ap))
+    changes |= {
+        "mean_change_percent": relative(before, after),
+        "mean_change_ci95": interval95(ratios),
+    }
+    if additive and base_passes and adapter_passes:
+        changes |= {
+            "per_success_change_percent": relative(before / base_passes, after / adapter_passes),
+            "per_success_change_ci95": interval95(per_success),
+        }
+    return changes
+
+
+def summarize_measured_resources(rows):
+    """Aggregate new evaluation telemetry with explicit coverage for resumed older runs."""
+    additive = (
+        "task_seconds",
+        "relay_requests",
+        "backend_requests",
+        "generation_requests",
+        "agent_turns",
+        "tool_calls",
+        "pi_tool_calls",
+        "tool_executions",
+        "tool_execution_seconds",
+        "rendered_prompt_tokens",
+        "prompt_tokens",
+        "completion_tokens",
+        "logical_tokens",
+        "reasoning_tokens",
+        "prefill_processed_tokens",
+        "prefill_reused_tokens",
+        "prefill_to_first_token_seconds",
+        "decode_seconds",
+        "inference_seconds",
+        "generation_relay_seconds",
+        "endpoint_seconds",
+    )
+    peaks = ("mlx_attempt_peak_bytes", "mlx_max_request_peak_bytes")
+    sources = list(dict.fromkeys(row["source"] for row in rows))
+    samples = list(source_resamples(sources)) if sources else []
+    summary = {
+        "schema_version": 1,
+        "bootstrap": {
+            "unit": "source_dataset",
+            "sources": len(sources),
+            "seed": BOOTSTRAP_SEED,
+            "resamples": BOOTSTRAP_RESAMPLES,
+        },
+    }
+    for cohort, group in (
+        ("all_tasks", rows),
+        (
+            "shared_successes",
+            [row for row in rows if row["base"]["reward"] == row["adapter"]["reward"] == 1],
+        ),
+    ):
+        arms = {}
+        for arm in ("base", "adapter"):
+            passes = sum(row[arm]["reward"] == 1 for row in group)
+            metrics = {}
+            for key in additive + peaks:
+                values = [resource_value(row[arm], key) for row in group]
+                observed = sum(value is not None for value in values)
+                complete = bool(values) and observed == len(values)
+                total = observed_sum(values) if key in additive else None
+                metrics[key] = {
+                    "observed_attempts": observed,
+                    "mean": mean(values) if complete else None,
+                    "median": median(values) if complete else None,
+                    "max": max(values) if complete else None,
+                    "total": total,
+                    "per_success": total / passes if total is not None and passes else None,
+                }
+            arms[arm] = {"passes": passes, "metrics": metrics}
+        summary[cohort] = {
+            "tasks": len(group),
+            "arms": arms,
+            "paired": {
+                key: paired_resource_changes(group, key, samples, key in additive)
+                for key in additive + peaks
+            },
+        }
+    return summary
 
 
 def evaluate(args, manifest):
@@ -232,6 +366,7 @@ def evaluate(args, manifest):
         save_json(args.output / "pairs.json", rows)
         print(f"Evaluated {len(rows)}/{len(tasks)} tasks", flush=True)
     summary = summarize(rows)
+    summary["efficiency"] = summarize_measured_resources(rows)
     save_json(args.output / "summary.json", summary)
     print(json.dumps(summary, indent=2))
     return 0

@@ -114,9 +114,18 @@ def harbor_run(policy, args) -> dict:
             task = args.task[step % len(args.task)]
             directory = args.output / f"group-{step + 1:04d}"
             directory.mkdir()
+            efficiency = []
 
             def save_attempt(index, result):
                 write_json(directory / f"attempt-{index + 1:02d}.json", result)
+                if "efficiency" in result:
+                    efficiency.append(
+                        {
+                            key: value
+                            for key, value in result["efficiency"].items()
+                            if key != "tool_spans"
+                        }
+                    )
 
             start = monotonic()
             mx.reset_peak_memory()
@@ -124,7 +133,15 @@ def harbor_run(policy, args) -> dict:
                 collect_harbor(policy, args, directory / "trials", save_attempt, task)
             )
             collection_seconds = monotonic() - start
-            collection_peak_gib = mx.get_peak_memory() / 2**30
+            collection_peak_gib = (
+                max(
+                    [
+                        mx.get_peak_memory(),
+                        *(row["mlx_group_peak_to_date_bytes"] for row in efficiency),
+                    ]
+                )
+                / 2**30
+            )
             update = {"updated": False}
             if not args.collect_only:
                 start = monotonic()
@@ -145,6 +162,8 @@ def harbor_run(policy, args) -> dict:
                 "collection_seconds": round(collection_seconds, 2),
                 "collection_peak_mlx_gib": round(collection_peak_gib, 3),
             }
+            if efficiency:
+                result["efficiency"] = efficiency
             commit_group(directory, result, policy, trainer.optimizer)
             metrics.append(result)
     return {"groups": metrics}
