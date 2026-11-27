@@ -1,0 +1,231 @@
+{
+  "hardware": {
+    "machine": "Mac Studio",
+    "chip": "Apple M4 Max",
+    "unified_memory_gb": 128,
+    "architecture": "arm64"
+  },
+  "software": {
+    "note": "Host versions and lockfile environment checked on the same Mac at release audit. Pi and task-image packages are recorded in the original experiment configuration.",
+    "python": "3.12.15",
+    "macos": "26.6.2",
+    "docker_engine": "29.2.1",
+    "pi": "1.5.2",
+    "task_image_python_packages": [
+      "numpy==2.2.6",
+      "pandas==2.3.3",
+      "scipy==1.15.3",
+      "scikit-learn==1.7.2",
+      "openpyxl==3.1.5",
+      "math-verify==0.8.0"
+    ],
+    "mlx": {
+      "version": "0.32.4"
+    },
+    "mlx-lm": {
+      "version": "0.32.3.dev28+ge2b5bbd3b",
+      "revision": "e2b5bbd3bd9d186dea895e60802aa765e70b9d93"
+    },
+    "harbor": {
+      "version": "0.25.0"
+    },
+    "openenv": {
+      "version": "0.14.1.dev0",
+      "revision": "3659dc73eb8114724209e642eee749cd94348ce3"
+    },
+    "safeagents": {
+      "version": "0.0.1",
+      "revision": "dcf38e0a911d6e6a53966d46ecf1d9d6b86e3c01"
+    },
+    "atif-scan": {
+      "version": "0.8.24"
+    },
+    "huggingface-hub": {
+      "version": "2.4.0"
+    }
+  },
+  "dataset": {
+    "repo": "FineEnvs/SmolDataEnvs-harbor-train",
+    "revision": "588744be728257abfb8d4984ec8fab2acbd1f7e1",
+    "historical_offline_base_image_id": "sha256:5bc03c9f9729b400dd35dbbb4d15457342c8072964e121a32c617a37ff9ef5b4",
+    "historical_environment": {
+      "platform": "linux/arm64",
+      "network_mode": "no-network",
+      "cpus": 2,
+      "memory_mb": 2048,
+      "agent_timeout_seconds": 150,
+      "verifier_timeout_seconds": 30
+    }
+  },
+  "training": {
+    "warmup_provenance": "../lfm3-pi/provenance.json#training",
+    "main": {
+      "backend": "lfm3",
+      "model": "LiquidAI/LFM3-1.7B-MLX-bf16",
+      "revision": "52041852d5b5c59bfe120c075d2744ab97959d91",
+      "rank": 32,
+      "seed": 1229,
+      "temperature": 0.8,
+      "attempts": 8,
+      "learning_rate": 1e-05,
+      "max_logprob_drift": 0.2,
+      "steps": 50,
+      "gradient_checkpointing": false,
+      "reward_key": "correctness,reward",
+      "safe_agents": "enforce",
+      "max_turns": 10,
+      "max_output": 1024,
+      "max_context": 6144,
+      "effort": "low",
+      "task_digests": [
+        "0a1b0f3f15bd1b4b79bc470e6143ab7e4792a65afc87b88203870157aebb8bc9",
+        "561928855c2a22d69980acb8e61ef6c1be1efe4f7f04a9aa6de371e102044429",
+        "4a5b70f9e1f220a4fba1ca86341d11bb180edcb4b241492e5319363041523cab",
+        "ab99cff044dba6f29e991018c57821b74f3b9bb7dd2467650df64bbd24a06992",
+        "6c3b142e723520d3841c7df7136e1775f09d83cd345860b7fdd1c32ea0855018",
+        "fa3cca62013e69f92d0ac6e903cdf84c5a84344068585351b4a6da5406b15cf0",
+        "2ba8cf75f3e3102e72d1394038dd16eafabdc58a2b94aef3c47bfaeb02684050",
+        "4df47df6c34d4259350ef1474635aa86f42a1b3cbe64f32b25d73afe0f8914f5",
+        "5f94312b087ca2f8da9c37b4f612302695ac2ec89e0eb68008d4cdec278aeee9",
+        "3186c9175872715d060028f072882240ecd991ca6f23ec2e1ca2b23b91d69e97",
+        "1cc3777311573995d78309dcb2cc87b71fbcc6b3261ee3b497b73311fe908f56",
+        "41164e4b02908f94fcb94156482d3d29ae7238f22011e8c38e0cb0b22c86c002",
+        "a3a491570f4073fbfd8faa47b74d734ce9e106db33d63c01d2bbe1357801273c",
+        "ca3b8d5d7be658119c81d57334d0e7ed1eff43a9c6425b1cce8fafbb436067d0",
+        "fd53f31f4d93959348853be7470bd5823ab4bc56a40bd9d7a41264c8f52550fb",
+        "c263fb43385cda9ba2a2613fac3831cbc4f30a10ece53b3db6a9b9b1a6c11395",
+        "00b95af204f9a671dc3bf61bf459066fcc1891cf6645a4084a20925e61cbd8bb",
+        "3fec6307933c4c73985b9ffdc5462ba248ca9898187d60ee4a8342c4c03a8190",
+        "0c67896a8a1b7ed1ed390db12bc49427158cfcb7997f2566589c6e4ddf5be0b0",
+        "183b169130e04a0a2467545f43fc19ff9d827a542bfb5b40693ba3c8cf9f282b",
+        "8f728a58d338994b46f8dfd6f1246771f83fe61014ce00f63c57d6ad9048a63b",
+        "c6ac0c3f39cbeaac7822e98acd8719df3575a6d0399bdad4ee66b103b267b43f",
+        "9f236cfccc7d74ba2d43d2f2d719366103a5a984ad8e39e659561286c807956f",
+        "db437009b4afd21cafdddbac45361d151c2ac8885b2a455d6f84b7b865a8cb5d",
+        "41a0ce8e67a7e300748ddae2a773cb8f443efb0072498a61dd67f86f571169f0",
+        "c7af8a8081633615fd6d329b5a94c2e9370fa59beed090d7eabee78e8b55e65c",
+        "8accf75054bbc1b7736d090c2b6b85929193ad7cc07470e80bab854180933130",
+        "56bb10eef0ccfe39deede39eefadd0b8cfd4287c835c22d99346c56f7922b14a",
+        "e5c9f083ef1dfc656745fddf2779c627b98b330e72e0ac39f08cbb7cdebdecb9",
+        "437c9fa4e28db824a7fdc14106e268f216fdffb4b6b488448ab80796fd9a4f06"
+      ],
+      "checkpoint_version": 1,
+      "harness": "pi",
+      "initialized_from_warmup_group": 3,
+      "schedule_seed": 8112030,
+      "calibration_seed": 9127,
+      "task_schedule_cycle": [
+        "0023_721_23721314_qa_1",
+        "0021_193_21193214_qa_3",
+        "0010_391_10391673_qa_1",
+        "0012_179_12179865_qa_4",
+        "0011_821_11821121_qa_2",
+        "0017_565_17565404_qa_2",
+        "0024_471_24471564_qa_5",
+        "0000_806_806826_qa_3",
+        "0019_106_19106342_qa_1",
+        "0019_517_19517811_qa_1",
+        "0001_661_1661005_qa_3",
+        "0026_895_26895005_qa_1",
+        "0002_350_2350400_qa_3",
+        "0001_633_1633600_qa_4",
+        "0001_202_1202888_qa_1",
+        "0024_650_24650942_qa_2",
+        "0029_908_29908654_qa_4",
+        "0012_856_12856368_qa_3",
+        "0001_636_1636611_qa_2",
+        "0001_975_1975169_qa_3",
+        "0001_289_1289812_qa_4",
+        "0024_675_24675509_qa_4",
+        "0024_991_24991983_qa_2",
+        "0001_234_1234901_qa_5",
+        "0001_531_1531545_qa_2",
+        "0001_935_1935106_qa_2",
+        "0022_272_22272220_qa_3",
+        "0002_351_2351047_qa_1",
+        "0002_253_2253838_qa_5",
+        "0001_170_1170198_qa_4"
+      ],
+      "optimizer_states_fresh_after_warmup": true,
+      "wall_seconds": 25911.844034,
+      "collection_seconds": 14155.21,
+      "optimization_seconds": 11328.23
+    }
+  },
+  "evaluation": {
+    "model": "LiquidAI/LFM3-1.7B-MLX-bf16",
+    "revision": "52041852d5b5c59bfe120c075d2744ab97959d91",
+    "rank": 32,
+    "lora_alpha": 64,
+    "temperature": 0.8,
+    "max_turns": 10,
+    "max_output": 1024,
+    "max_context": 6144,
+    "eval_seed_start": 7297,
+    "heldout_tasks": 150,
+    "rollouts_per_task_per_arm": 1,
+    "agent_timeout_seconds": 150,
+    "harness": "pi",
+    "safe_agents": "enforce",
+    "effort": "low",
+    "reward_key": "correctness,reward",
+    "verifier_timeout_seconds": 30,
+    "selection_seed": 8112029,
+    "difficulty_counts": {
+      "medium": 107,
+      "easy": 43
+    },
+    "source_datasets": 93,
+    "bootstrap_seed": 8921,
+    "bootstrap_resamples": 10000,
+    "published_adapter": {
+      "repo": "harness-hub/LFM3-1.7B-pi",
+      "revision": "6b15c1c0b2db4e573dbe3a07e73655873be8fca0",
+      "tensors": 306,
+      "sha256": "40e147149151301b6bb993f1c44ec19f08374275f1cfa48a1fceff0358009d20",
+      "converted_mlx_sha256": "b5497a5b7e4ba7cd0f6c0eedcc3a7a08e95100e094dcefa84a78c8136d64add2"
+    },
+    "order": "Broader arm evaluated after the three archived reference arms using the same tasks and per-task seeds.",
+    "reused_reference_results": "../lfm3-pi/pairs.jsonl",
+    "new_rollouts": 150,
+    "wall_seconds_new_arm": 4349.608672
+  },
+  "evaluated_local_adapter": {
+    "training_group": 50,
+    "optimizer_step": 45,
+    "tensors": 306,
+    "sha256": {
+      "adapter_config.json": "6b7110b8256da985f9416ad22987f88c10563fa157760d7064d2490546d6a8dd",
+      "adapter_metadata.json": "2958e280314ab0efc66d58b62f3762a006be024ec39d7340adc7e210f3dfcd21",
+      "adapters.safetensors": "fd5226a1ea16ec34c90859f64ab0d925c5806db0a016698c924ebd7d6c6b1b76"
+    }
+  },
+  "historical_engine_files_sha256": {
+    "apple_harness_adapter/__init__.py": "8ff313f00484cc2618f03eb020c496d76d35fee1bc0e5f30924ea9660881a2cc",
+    "apple_harness_adapter/backends/__init__.py": "df4e976e01ac732f8448ff3f1861767cc7917f27b5d9db5577a6f4e3f2b79ae7",
+    "apple_harness_adapter/backends/base.py": "c308ed4bd7b131585a95b2d1fa02be94dd70fb9bcf707b08d581a98cf951aeed",
+    "apple_harness_adapter/backends/inkling.py": "9c8484f1aa99f35b333319c575626e13108914dd216817dfc5f873c351f441e2",
+    "apple_harness_adapter/backends/inkling_chat.py": "95cdcbd9970390634cda07bf213e701119aa41b9bc0cc4073bf52caa777514b7",
+    "apple_harness_adapter/backends/inkling_score.py": "ec0ebecd2b58780fb87f47b17ef0905e9415051e1bd451c35f3abcf5b126d3f7",
+    "apple_harness_adapter/backends/lfm3.py": "dfa35646ce013a83cf2d66f204ab5c9d1ef6d2fa2d95255d1a34bc382682c5e4",
+    "apple_harness_adapter/backends/lfm3_model.py": "4aa081492a90c1e1878895c4e3534236c50a79e58e45da83df5a8b4840e916b4",
+    "apple_harness_adapter/backends/qwen3.py": "d83e35a28c2a2a0e1f3537ff140969c7c040632b43245efe060c18dff453fbad",
+    "apple_harness_adapter/checkpoint.py": "4381eccfa50efc7da17dd1186b64cc4bac74c401eea2f603f9208f86d27c6587",
+    "apple_harness_adapter/cli.py": "7252829046666a3f254d4531a52556f5a611326fe26eba7084a888d06d19ca77",
+    "apple_harness_adapter/endpoint.py": "1c2b88a512857a0a6f8fb5dfc208c154387ae74d2542160e0d60c6ffe0809fd4",
+    "apple_harness_adapter/grpo.py": "f1cac47dd122b91a736cd07040c9a458277e3fc168082025ff525548851d3b72",
+    "apple_harness_adapter/harbor.py": "a0c5d9bcb181b7041c6d2f805bdb538a23d774419ca976add597ce7f66700089",
+    "apple_harness_adapter/policy.py": "0e35de5027b7e7fb730f2c1e439ba58b0dada26af91c28edf16a217b4950ab7d",
+    "apple_harness_adapter/relay.js": "2d07b81bdae4465146569b1ce03c3959b8bb902ebe5e4e7f14d0ba77d481fd19",
+    "apple_harness_adapter/safe_agents.py": "72b2f0687633443793040e38fcf0a74201df612d88d3165cbc8e2956c455b458",
+    "apple_harness_adapter/trace.py": "19df94db3b23a8727e6849c316e3d129c47bf3ba3bf99a82893e67fc87b21a79"
+  },
+  "original_artifacts_sha256": {
+    "lfm3-breadth/evaluation/pairs.json": "f8b97476935197a67bd1a0f9d84fc749c503f5bd63759143e960a08fa5682e79",
+    "lfm3-breadth/evaluation/summary.json": "41808843d4c43a5238fb75adb761e0f6fdb347dc4457999aaedf3a3253fce1ea",
+    "lfm3-breadth/plan.json": "209bee51c3f1673954e558ee1d60da77dfe2d04e039eb020f3a9ef8816a36850",
+    "lfm3-breadth/training/config.json": "a94139fc6c0b7ac0eaa4cff55b068a2c7317dd9486cc480fd14b39f66f26ba60",
+    "lfm3-breadth/training-summary.json": "2915f6f3947aad187059a839a67c08385d3d80feb8b7b4056ddf0446810034b5",
+    "lfm3-breadth/training-schedule.json": "aad438fdad3d854ca7500e208b9886a05ebb7ab7899218685f3308e82b21ad7b"
+  }
+}

@@ -2,21 +2,19 @@
 
 Train a LoRA adapter for a specific agent harness on an Apple Silicon Mac. The project runs online reinforcement learning with native MLX inference and training, real Pi or OpenCode sessions, and Harbor tasks with executable verifiers. After downloading the model and preparing the tasks, you can train locally without renting GPUs or paying for inference APIs.
 
-## Results
+## Results and downloads
 
-One **LFM3-1.7B BF16 + Pi** run on an **M4 Max Mac Studio with 128 GB of unified memory** took about **8 hours** for main training and peaked at **35.5 GiB of MLX memory**. Main training used **14 tasks** after warmup, with **400 rollouts** and **41 optimizer updates across 50 groups**. Held-out evaluation covered **150 tasks from 93 source datasets**.
+The recommended **LFM3-1.7B BF16 + Pi adapter** passed **100/150** held-out SmolDataEnvs tasks after training on 30 tasks. Training used 400 rollouts across 50 groups on an M4 Max Mac Studio, with a peak of about **35.5 GiB of MLX memory**.
 
-| Metric | Base | Local adapter |
+| Checkpoint | Tasks passed | Tool calls vs. base on shared successes |
 | --- | ---: | ---: |
-| Held-out tasks passed | 72/150 | 83/150 |
-| Task completion | 48.0% | 55.3% |
-| Tool calls on shared successes | 280 | 219 |
+| Base LFM3-1.7B BF16 | 72/150 | — |
+| [14-task baseline](https://github.com/brendanboyle87/local-apple-harness-adapter/releases/download/v0.1.0/lfm3-1.7b-pi-mlx-14-task-v0.1.0.tar.gz) | 83/150 | 21.8% fewer |
+| [30-task adapter (recommended)](https://github.com/brendanboyle87/local-apple-harness-adapter/releases/download/v0.1.0/lfm3-1.7b-pi-mlx-30-task-v0.1.0.tar.gz) | **100/150** | **15.7% fewer** |
 
-Task completion increased by **7.3 percentage points** (95% CI **−1.29 to +15.79 points**). This interval includes zero. On the **59 tasks both arms passed**, the local adapter used **21.8% fewer tool calls** (95% CI for the signed change **−28.91% to −13.85%**). The tool-call result measures invocations. Inference tokens, latency, and total compute cost are separate quantities.
+The 30-task adapter gained **18.7 percentage points** over base (paired 95% CI **+10.3 to +27.0**). Each tool-call comparison uses the tasks both checkpoints solved. Unpack the download and give its directory to `--adapter PATH` with Pi and the pinned BF16 base.
 
-![Base and local adapter completion rates with paired bootstrap intervals for completion and shared-success tool calls](results/lfm3-pi/heldout.svg)
-
-[Experimental evidence and statistics](results/lfm3-pi/README.md) · [Methodology and limitations](docs/methodology.md)
+[30-task evidence](results/lfm3-pi-breadth/README.md) · [14-task evidence](results/lfm3-pi/README.md) · [Methodology](docs/methodology.md) · [Release and checksums](https://github.com/brendanboyle87/local-apple-harness-adapter/releases/tag/v0.1.0)
 
 ## Supported configurations
 

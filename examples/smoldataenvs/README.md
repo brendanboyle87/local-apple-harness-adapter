@@ -32,7 +32,9 @@ uv run --no-sync python examples/smoldataenvs/run.py train \
   --output runs/smol-train
 ```
 
-Use the last group containing an `adapter/` directory if a final group skipped its update. The main reference run took about eight hours after preparation and peaked at 35.5 GiB of MLX memory, plus macOS and Docker memory. Repeat a training command with `--resume` to continue at the last committed group.
+The commands above reproduce the 14-task baseline schedule. For the recommended checkpoint, prepare the [30-task schedule](breadth.jsonl) with `--split breadth --output runs/smol-breadth-tasks`. Then run the main training command with `--tasks runs/smol-breadth-tasks --output runs/smol-breadth`, using the same warmup adapter. The runner uses 50 groups and seed 1229 for either schedule.
+
+Use the last group containing an `adapter/` directory if a final group skipped its update. The 14-task run took about eight hours and the 30-task run took about seven hours. Both peaked at about 35.5 GiB of MLX memory, plus macOS and Docker memory. Repeat a training command with `--resume` to continue at the last committed group.
 
 ## Paired evaluation
 
@@ -46,4 +48,4 @@ uv run --no-sync python examples/smoldataenvs/run.py evaluate \
   --output runs/smol-eval
 ```
 
-Read `summary.json` for pass counts, tool calls on shared successes, and source-dataset bootstrap intervals. Repeating the evaluation command reuses completed measurements. The [reference report](observed.json) records the run on one Mac. Sampling and environment rebuilds can change individual outcomes.
+Point `--adapter` at `runs/smol-breadth/group-0050/adapter` to evaluate the broader run, or unpack either [release download](https://github.com/brendanboyle87/local-apple-harness-adapter/releases/tag/v0.1.0) and pass its adapter directory. Read `summary.json` for pass counts, tool calls on shared successes, and source-dataset bootstrap intervals. Repeating the evaluation command reuses completed measurements. Sampling and environment rebuilds can change individual outcomes. See the [14-task evidence](../../results/lfm3-pi/README.md) and [30-task evidence](../../results/lfm3-pi-breadth/README.md) for recorded measurements.

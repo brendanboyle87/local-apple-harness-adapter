@@ -167,7 +167,7 @@ def stage_task(task, root, base, harness):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--split", required=True, choices=("warmup", "train", "heldout"))
+    parser.add_argument("--split", required=True, choices=("warmup", "train", "breadth", "heldout"))
     parser.add_argument("--harness", choices=FIXTURES, default="pi")
     parser.add_argument("--limit", type=int, help="stage only the first N tasks")
     parser.add_argument("--output", required=True, type=Path)
@@ -182,7 +182,7 @@ def main():
     manifest = {
         "dataset": DATASET,
         "revision": REVISION,
-        "split": args.split,
+        "split": "train" if args.split == "breadth" else args.split,
         "harness": args.harness,
         "tasks": records,
     }

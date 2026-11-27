@@ -1,0 +1,130 @@
+{
+  "completed_tasks": 150,
+  "new_rollouts": 150,
+  "comparisons": {
+    "broad_vs_local": {
+      "pairs": 150,
+      "reference_arm": "local",
+      "adapter_arm": "broad",
+      "passes": {
+        "local": 83,
+        "broad": 100
+      },
+      "adapter_only": 28,
+      "reference_only": 11,
+      "joint_passes": 72,
+      "calls_on_joint_passes": {
+        "local": 268,
+        "broad": 289
+      },
+      "timeouts": {
+        "local": 0,
+        "broad": 0
+      },
+      "blocked_calls": {
+        "local": 0,
+        "broad": 0
+      },
+      "pass_rate_change_pp": 11.333333333333334,
+      "joint_tool_call_change_percent": 7.835820895522394,
+      "paired_uncertainty": {
+        "pass_rate_change_pp_ci95": [
+          3.75,
+          18.954248366013072
+        ],
+        "joint_tool_call_change_percent_ci95": [
+          0.8660856687172409,
+          15.053673535440726
+        ],
+        "bootstrap_resamples": 10000,
+        "bootstrap_unit": "source_dataset",
+        "source_datasets": 93
+      }
+    },
+    "broad_vs_base": {
+      "pairs": 150,
+      "reference_arm": "base",
+      "adapter_arm": "broad",
+      "passes": {
+        "base": 72,
+        "broad": 100
+      },
+      "adapter_only": 35,
+      "reference_only": 7,
+      "joint_passes": 65,
+      "calls_on_joint_passes": {
+        "base": 318,
+        "broad": 268
+      },
+      "timeouts": {
+        "base": 0,
+        "broad": 0
+      },
+      "blocked_calls": {
+        "base": 0,
+        "broad": 0
+      },
+      "pass_rate_change_pp": 18.666666666666668,
+      "joint_tool_call_change_percent": -15.723270440251568,
+      "paired_uncertainty": {
+        "pass_rate_change_pp_ci95": [
+          10.273972602739725,
+          26.97368421052631
+        ],
+        "joint_tool_call_change_percent_ci95": [
+          -22.82600535317927,
+          -8.090614886731395
+        ],
+        "bootstrap_resamples": 10000,
+        "bootstrap_unit": "source_dataset",
+        "source_datasets": 93
+      }
+    },
+    "broad_vs_published": {
+      "pairs": 150,
+      "reference_arm": "published",
+      "adapter_arm": "broad",
+      "passes": {
+        "published": 100,
+        "broad": 100
+      },
+      "adapter_only": 12,
+      "reference_only": 12,
+      "joint_passes": 88,
+      "calls_on_joint_passes": {
+        "published": 288,
+        "broad": 367
+      },
+      "timeouts": {
+        "published": 0,
+        "broad": 0
+      },
+      "blocked_calls": {
+        "published": 0,
+        "broad": 0
+      },
+      "pass_rate_change_pp": 0.0,
+      "joint_tool_call_change_percent": 27.430555555555557,
+      "paired_uncertainty": {
+        "pass_rate_change_pp_ci95": [
+          -6.293596340766152,
+          6.62251655629139
+        ],
+        "joint_tool_call_change_percent_ci95": [
+          18.556855361442064,
+          36.9046520822351
+        ],
+        "bootstrap_resamples": 10000,
+        "bootstrap_unit": "source_dataset",
+        "source_datasets": 93
+      }
+    }
+  },
+  "source_datasets": 93,
+  "passes": {
+    "base": 72,
+    "published": 100,
+    "local": 83,
+    "broad": 100
+  }
+}
