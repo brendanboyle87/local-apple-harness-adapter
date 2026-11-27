@@ -14,6 +14,8 @@ The recommended **LFM3-1.7B BF16 + Pi adapter** passed **100/150** held-out Smol
 
 The 30-task adapter gained **18.7 percentage points** over base (paired 95% CI **+10.3 to +27.0**). Each tool-call comparison uses the tasks both checkpoints solved. Unpack the download and give its directory to `--adapter PATH` with Pi and the pinned BF16 base.
 
+The 30-task adapter used **42.4% fewer logical input and output tokens per success** than base (paired 95% CI **−51.2% to −32.9%**), including resources spent on failed attempts. Across all tasks it generated **3.5% more completion tokens** and took **1.2% less elapsed time**, with both intervals spanning zero. The published Harness Hub adapter matched its pass count while using fewer logical tokens. [Efficiency comparisons and limitations](results/lfm3-pi-breadth/efficiency.md)
+
 [30-task evidence](results/lfm3-pi-breadth/README.md) · [14-task evidence](results/lfm3-pi/README.md) · [Methodology](docs/methodology.md) · [Release and checksums](https://github.com/brendanboyle87/local-apple-harness-adapter/releases/tag/v0.1.0)
 
 ## Supported configurations

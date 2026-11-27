@@ -9,7 +9,7 @@ HERE = Path(__file__).resolve().parent
 RECIPE = HERE.parents[1] / "examples" / "smoldataenvs"
 sys.path.insert(0, str(RECIPE))
 
-from efficiency import extract, read_json, read_jsonl, summarize_efficiency  # noqa: E402
+from efficiency import extract, plot_efficiency, read_json, read_jsonl, summarize_efficiency  # noqa: E402
 from run import BOOTSTRAP_RESAMPLES, summarize  # noqa: E402
 
 
@@ -56,22 +56,30 @@ def comparison(rows, reference, adapted):
     }
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="check the regenerated artifacts")
+def add_efficiency_arguments(parser):
     parser.add_argument(
         "--efficiency", action="store_true", help="analyze released efficiency data"
     )
-    parser.add_argument("--archive", type=Path, help="extract from the original lfm3-150 directory")
+    parser.add_argument("--archive", type=Path, help="extract from the historical run directory")
     parser.add_argument("--tokenizer-snapshot", type=Path, help="local pinned LFM3 tokenizer files")
     parser.add_argument(
         "--write", action="store_true", help="write regenerated efficiency artifacts"
     )
-    args = parser.parse_args()
+
+
+def validate_efficiency_arguments(parser, args):
     if bool(args.archive) != bool(args.tokenizer_snapshot):
         parser.error("--archive and --tokenizer-snapshot must be supplied together")
     if args.write and (args.check or not (args.efficiency or args.archive)):
         parser.error("--write requires an efficiency analysis without --check")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true", help="check the regenerated artifacts")
+    add_efficiency_arguments(parser)
+    args = parser.parse_args()
+    validate_efficiency_arguments(parser, args)
     rows = read_jsonl(HERE / "pairs.jsonl")
     arms = ("base", "published", "local")
     comparisons = {
@@ -99,8 +107,6 @@ def main():
 
 
 def efficiency(args, rows, original):
-    from efficiency import plot_efficiency
-
     measured_path = HERE / "efficiency-pairs.jsonl"
     measured = (
         extract(args.archive, args.tokenizer_snapshot, rows, read_json(HERE / "provenance.json"))
@@ -108,6 +114,11 @@ def efficiency(args, rows, original):
         else read_jsonl(measured_path)
     )
     results = summarize_efficiency(measured, rows)
+    verify_joint_calls(results, original)
+    publish_efficiency(args, HERE, measured, results, plot_efficiency(results))
+
+
+def verify_joint_calls(results, original):
     joint_calls = results["shared_successes"]["metrics"]["tool_calls"]
     if (
         joint_calls["mean_change_percent"] != original["joint_tool_call_change_percent"]
@@ -115,12 +126,15 @@ def efficiency(args, rows, original):
         != original["paired_uncertainty"]["joint_tool_call_change_percent_ci95"]
     ):
         raise ValueError("Efficiency analysis differs from the original joint tool-call result")
+
+
+def publish_efficiency(args, directory, measured, results, figure):
     artifacts = {
-        HERE / "efficiency.json": json.dumps(results, indent=2, allow_nan=False) + "\n",
-        HERE / "efficiency.svg": plot_efficiency(results),
+        directory / "efficiency.json": json.dumps(results, indent=2, allow_nan=False) + "\n",
+        directory / "efficiency.svg": figure,
     }
     if args.archive:
-        artifacts[measured_path] = "".join(
+        artifacts[directory / "efficiency-pairs.jsonl"] = "".join(
             json.dumps(row, separators=(",", ":"), allow_nan=False) + "\n" for row in measured
         )
     if args.check:
@@ -132,7 +146,7 @@ def efficiency(args, rows, original):
         for path, contents in artifacts.items():
             path.write_text(contents, encoding="utf-8")
     else:
-        print(artifacts[HERE / "efficiency.json"], end="")
+        print(artifacts[directory / "efficiency.json"], end="")
 
 
 if __name__ == "__main__":

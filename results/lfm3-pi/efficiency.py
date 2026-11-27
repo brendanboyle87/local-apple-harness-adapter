@@ -404,7 +404,16 @@ def extract_attempt(directory, measurement, tokenizer, config):
     }
 
 
-def extract(archive, snapshot, historical, provenance):
+def extract(
+    archive,
+    snapshot,
+    historical,
+    provenance,
+    *,
+    archive_key="lfm3-150",
+    archive_arms=("base", "published", "local"),
+    output_arms=ARMS,
+):
     from transformers import AutoTokenizer
 
     for name, digest in TOKENIZER_HASHES.items():
@@ -412,7 +421,7 @@ def extract(archive, snapshot, historical, provenance):
     raw = archive / "evaluation"
     hashes = provenance["original_artifacts_sha256"]
     for filename in ("evaluation/pairs.json", "evaluation/summary.json", "plan.json"):
-        check_hash(archive / filename, hashes[f"lfm3-150/{filename}"])
+        check_hash(archive / filename, hashes[f"{archive_key}/{filename}"])
     for filename in ("endpoint.py", "backends/lfm3.py", "backends/base.py", "cli.py", "harbor.py"):
         name = f"apple_harness_adapter/{filename}"
         check_hash(archive / "engine" / name, provenance["historical_engine_files_sha256"][name])
@@ -426,14 +435,15 @@ def extract(archive, snapshot, historical, provenance):
     rows = []
     for pair in historical:
         measurements = {}
-        # Also replay the original third arm to cross-check the accounting rules.
         for arm, measurement in pair["arms"].items():
+            if arm not in archive_arms:
+                continue
             directory = raw / pair["task"] / arm
             try:
                 data = extract_attempt(directory, measurement, tokenizer, plan)
             except (ValueError, KeyError, OSError) as error:
                 raise ValueError(f"{pair['task']}/{arm}: {error}") from error
-            if arm in ARMS:
+            if arm in output_arms:
                 measurements[arm] = data
         rows.append(
             {
@@ -467,7 +477,7 @@ def distribution(values, unit):
     }
 
 
-def cohort_statistics(rows, metric, samples):
+def cohort_statistics(rows, metric, samples, arms=ARMS):
     groups = defaultdict(list)
     for source, before, after in rows:
         if before is not None and after is not None:
@@ -488,9 +498,9 @@ def cohort_statistics(rows, metric, samples):
     return {
         "pairs": len(pairs),
         "source_datasets": len(groups),
-        "base": distribution(before, METRICS[metric]),
-        "local": distribution(after, METRICS[metric]),
-        "local_lower_tied_higher": [
+        arms[0]: distribution(before, METRICS[metric]),
+        arms[1]: distribution(after, METRICS[metric]),
+        f"{arms[1]}_lower_tied_higher": [
             sum(a < b for b, a in pairs),
             sum(a == b for b, a in pairs),
             sum(a > b for b, a in pairs),
@@ -504,7 +514,7 @@ def cohort_statistics(rows, metric, samples):
     }
 
 
-def per_solve_statistics(rows, samples):
+def per_solve_statistics(rows, samples, arms=ARMS):
     groups = defaultdict(lambda: [0, 0, 0, 0])
     for source, before, after, base_pass, local_pass in rows:
         values = groups[source]
@@ -522,8 +532,8 @@ def per_solve_statistics(rows, samples):
             if b:
                 changes.append(percent_change(b / bp, a / ap))
     return {
-        "base": base,
-        "local": local,
+        arms[0]: base,
+        arms[1]: local,
         "difference": local - base,
         "difference_ci95": interval95(differences),
         "change_percent": percent_change(base, local),
@@ -532,19 +542,20 @@ def per_solve_statistics(rows, samples):
     }
 
 
-def summarize_efficiency(rows, historical):
+def summarize_efficiency(rows, historical, arms=ARMS):
+    reference, adapter = arms
     sources = list(dict.fromkeys(row["bucket_prefix"] for row in historical))
     samples = list(source_resamples(sources))
     paired = []
     for row, original in zip(rows, historical, strict=True):
         require(
             all(row[key] == original[key] for key in ("task", "bucket_prefix", "seed"))
-            and set(row["arms"]) == set(ARMS),
+            and set(arms) <= row["arms"].keys(),
             "Pairs differ from the original ordered task list",
         )
         observations = row["arms"]
         measures = original["arms"]
-        for arm in ARMS:
+        for arm in arms:
             for new, old in (
                 ("reward", "reward"),
                 ("tool_calls", "tool_calls"),
@@ -557,22 +568,23 @@ def summarize_efficiency(rows, historical):
                 point["logical_tokens"] == point["prompt_tokens"] + point["completion_tokens"],
                 "Inconsistent released token accounting",
             )
-        outcomes = [measures[arm]["reward"] == 1 for arm in ARMS]
+        outcomes = [measures[arm]["reward"] == 1 for arm in arms]
         paired.append((original["bucket_prefix"], observations, *outcomes))
     shared = [row for row in paired if row[2] and row[3]]
     cohorts = {}
     for label, observations in (("all_tasks", paired), ("shared_successes", shared)):
         cohorts[label] = {
             "tasks": len(observations),
-            "passes": dict(zip(ARMS, map(sum, zip(*(row[2:] for row in observations))))),
+            "passes": dict(zip(arms, map(sum, zip(*(row[2:] for row in observations))))),
             "metrics": {
                 metric: cohort_statistics(
                     [
-                        (source, points["base"][metric], points["local"][metric])
+                        (source, points[reference][metric], points[adapter][metric])
                         for source, points, _, _ in observations
                     ],
                     metric,
                     samples,
+                    arms,
                 )
                 for metric in METRICS
             },
@@ -580,18 +592,18 @@ def summarize_efficiency(rows, historical):
     per_solve = {}
     for metric in METRICS:
         values = [
-            (source, arms["base"][metric], arms["local"][metric], bp, ap)
-            for source, arms, bp, ap in paired
+            (source, points[reference][metric], points[adapter][metric], bp, ap)
+            for source, points, bp, ap in paired
         ]
         per_solve[metric] = (
-            per_solve_statistics(values, samples)
+            per_solve_statistics(values, samples, arms)
             if metric != "peak_mlx_gib"
             and all(v[1] is not None and v[2] is not None for v in values)
             else None
         )
     return {
         "schema_version": 1,
-        "comparison": "local_vs_base",
+        "comparison": f"{adapter}_vs_{reference}",
         "bootstrap": {
             "unit": "source_dataset",
             "source_datasets": len(sources),
@@ -610,7 +622,7 @@ def summarize_efficiency(rows, historical):
                     row["arms"][arm]["reasoning_tokens"] is not None for row in rows
                 ),
             }
-            for arm in ARMS
+            for arm in arms
         },
         **cohorts,
         "per_success": {
@@ -621,7 +633,7 @@ def summarize_efficiency(rows, historical):
     }
 
 
-def plot_efficiency(results):
+def plot_efficiency(results, comparison_label="Local adapter"):
     """Draw the paired percent changes and intervals in the release's SVG format."""
     from math import ceil, floor
 
@@ -637,8 +649,8 @@ def plot_efficiency(results):
         "peak_mlx_gib": "MLX collection peak",
     }
     cohorts = (
-        ("all_tasks", "All 150 task pairs"),
-        ("shared_successes", "59 shared successes"),
+        ("all_tasks", f"All {results['all_tasks']['tasks']} task pairs"),
+        ("shared_successes", f"{results['shared_successes']['tasks']} shared successes"),
         ("per_success", "Per successful task"),
     )
 
@@ -661,7 +673,8 @@ def plot_efficiency(results):
         'font-family="system-ui, sans-serif">',
         '<title id="title">LFM3 and Pi efficiency</title>',
         '<desc id="description">Paired percentage changes with 95% confidence intervals '
-        "for the local adapter versus the base model. Negative values indicate lower use.</desc>",
+        f"for the {comparison_label.lower()} versus the base model. "
+        "Negative values indicate lower use.</desc>",
         f'<rect width="960" height="{height}" fill="#fff"/>',
     ]
 
@@ -678,7 +691,7 @@ def plot_efficiency(results):
         )
 
     label(28, 33, "LFM3 BF16 + Pi efficiency", size=22, weight=700)
-    label(28, 57, "Local adapter change (%) with paired 95% confidence intervals", size=14)
+    label(28, 57, f"{comparison_label} change (%) with paired 95% confidence intervals", size=14)
     for i, (cohort, title) in enumerate(cohorts):
         left = 214 + 244 * i
         width = 210

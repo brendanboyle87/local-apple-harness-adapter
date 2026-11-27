@@ -10,12 +10,15 @@ The broader adapter passed **100/150** held-out SmolDataEnvs tasks. It used 50 g
 
 The broader arm ran one fresh rollout per task with the same Pi version, verifier, limits, and per-task seed. The three comparison arms reuse the [earlier experiment's measurements](../lfm3-pi/pairs.jsonl). Both the broader adapter and published adapter solved 100 tasks, with 12 unique passes each. The study covers one training seed and a change in the task schedule, including the mix of tasks and the number of optimizer updates.
 
+Across all 150 tasks the 30-task adapter used **20.04% fewer logical tokens** than base and **12.95% more** than the published adapter. It generated **3.51% more completion tokens** than base, with a confidence interval spanning zero. [Efficiency results, timing caveats, and reproduction](efficiency.md)
+
 ## Evidence
 
 | File | Contents |
 | --- | --- |
 | [pairs.jsonl](pairs.jsonl) | Numeric measurements for all four arms with source, seed, and task digest |
 | [summary.json](summary.json) | Original broader-arm aggregate with full-precision paired intervals |
+| [efficiency-pairs.jsonl](efficiency-pairs.jsonl), [efficiency.json](efficiency.json) | Per-task numeric measurements for the broader and published arms, plus distribution statistics and intervals for all three comparisons |
 | [training.jsonl](training.jsonl) | Fifty main groups with verifier scores, rewards, update counts, duration, and memory |
 | [provenance.json](provenance.json) | Frozen settings, task order, engine hashes, adapter hashes, and run timing |
 | [breadth.jsonl](../../examples/smoldataenvs/breadth.jsonl) | Pinned 30-task training schedule and input hashes |
