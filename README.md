@@ -1,10 +1,10 @@
 # Local Apple Harness Adapter
 
-Train a LoRA adapter for a specific agent harness on an Apple Silicon Mac. The project runs online reinforcement learning with native MLX inference and training, real Pi or OpenCode sessions, and Harbor tasks with executable verifiers. After downloading the model and preparing the tasks, you can train locally without renting GPUs or paying for inference APIs.
+Train a LoRA adapter for an agent harness on an Apple Silicon Mac. This project implements Harness Hub's training recipe in native MLX, using real Pi or OpenCode sessions, Harbor tasks with executable verifiers, and a single-update, group-relative policy gradient. The measured single-Mac experiment uses LFM3-1.7B BF16 with Pi on a frozen selection of SmolDataEnvs tasks. [Harness Hub experiment](https://huggingface.co/blog/harness-hub/harness-adapters)
 
 ## Results and downloads
 
-The recommended **LFM3-1.7B BF16 + Pi adapter** passed **100/150** held-out SmolDataEnvs tasks after training on 30 tasks. Training used 400 rollouts across 50 groups on an M4 Max Mac Studio, with a peak of about **35.5 GiB of MLX memory**.
+The **LFM3-1.7B BF16 + Pi 30-task adapter** passed **100/150** held-out SmolDataEnvs tasks. It inherited 24 warmup rollouts on two tasks, then used 400 main-training rollouts on 30 other tasks. The main phase applied 45 updates in 7.2 hours and peaked at **35.464 GiB in the MLX allocator** on a 128 GB M4 Max. The task-selection archives contain another 376 screening attempts shared across experiments. The frozen manifest lets a reproduction skip screening. [Training budget and evidence](results/lfm3-pi-breadth/README.md#training-budget)
 
 | Checkpoint | Tasks passed | Tool calls vs. base on shared successes |
 | --- | ---: | ---: |
@@ -12,11 +12,11 @@ The recommended **LFM3-1.7B BF16 + Pi adapter** passed **100/150** held-out Smol
 | [14-task baseline](https://github.com/brendanboyle87/local-apple-harness-adapter/releases/download/v0.1.0/lfm3-1.7b-pi-mlx-14-task-v0.1.0.tar.gz) | 83/150 | 21.8% fewer |
 | [30-task adapter (recommended)](https://github.com/brendanboyle87/local-apple-harness-adapter/releases/download/v0.1.0/lfm3-1.7b-pi-mlx-30-task-v0.1.0.tar.gz) | **100/150** | **15.7% fewer** |
 
-The 30-task adapter gained **18.7 percentage points** over base (paired 95% CI **+10.3 to +27.0**). Each tool-call comparison uses the tasks both checkpoints solved. Unpack the download and give its directory to `--adapter PATH` with Pi and the pinned BF16 base.
+The 30-task adapter gained **18.67 percentage points** over base (paired 95% interval **+10.27 to +26.97**). Two identical input files recur in three held-out tasks. Excluding those tasks gives **97/147 versus 72/147**, or **+17.01 points** (paired 95% interval **+8.82 to +25.00**). The intervals resample task sources. The evaluation used one stochastic attempt per task and arm, and the 30-task arm ran after the other arms on the same holdout. Each tool-call comparison uses the tasks both checkpoints solved. Unpack the download and pass its directory to `--adapter PATH` with Pi and the pinned BF16 base. [Sensitivity analysis and verifier outcomes](results/lfm3-pi-breadth/README.md#input-overlap-sensitivity)
 
 The 30-task adapter used **42.4% fewer logical input and output tokens per success** than base (paired 95% CI **−51.2% to −32.9%**), including resources spent on failed attempts. Across all tasks it generated **3.5% more completion tokens** and took **1.2% less elapsed time**, with both intervals spanning zero. The published Harness Hub adapter matched its pass count while using fewer logical tokens. [Efficiency comparisons and limitations](results/lfm3-pi-breadth/efficiency.md)
 
-**Training caveat.** Every optimizer update in both local runs triggered at least one sampling replay check. In the 30-task run, dense scoring differed from the recorded sampling log probabilities by up to **0.7327 nats**. The replay check passed and the trainer retained the dense gradients. The held-out results measure the released checkpoints. Gradient agreement between the two scoring paths remains unmeasured. [Replay audit](results/lfm3-pi-breadth/README.md#log-probability-replay-audit)
+**Gradient audit.** In the 30-task run, 972 of 2,017 turns in updated groups triggered sampling replay. The trainer retained the dense gradients after successful checks. In group 41, which had the highest dense drift, the aggregate dense and sampling-shaped cached gradients had cosine similarity **0.99687** and a **7.93% relative L2 difference**. Effects on other groups and final weights remain open. [Group 41 audit](results/lfm3-pi-breadth/README.md#group-41-gradient-audit)
 
 [30-task evidence](results/lfm3-pi-breadth/README.md) · [14-task evidence](results/lfm3-pi/README.md) · [Methodology](docs/methodology.md) · [Release and checksums](https://github.com/brendanboyle87/local-apple-harness-adapter/releases/tag/v0.1.0)
 
@@ -57,10 +57,10 @@ Use the [SmolDataEnvs recipe](examples/smoldataenvs/README.md) for a one-group p
 
 - **Train.** Pass one or more `--task PATH` arguments and set `--steps N` for the number of rollout groups. Omit `--collect-only` and use multiple attempts per group. Equal effective rewards skip the update. Each Harbor task needs an instruction, a verifier that emits a score from 0 to 1, and a `no-network` ARM64 image or Dockerfile with Pi 1.5.2 or OpenCode 1.18.30. SafeAgents reviews tool calls by default.
 - **Evaluate.** Use `--collect-only` for both arms and match held-out tasks, seeds, harness, model, and rollout limits. Add `--adapter PATH` to the adapter arm. The example runner handles pairing, arm order, and the summary.
-- **Resume.** After the previous trainer exits, repeat the training command with `--resume`, the same output directory, and matching settings. You can increase `--steps`. Keep the group metrics, adapter directories, and `training.safetensors` files so the runner can restore the latest committed adapter, Adam state, and sampling key.
+- **Resume.** After the previous runner exits, repeat the Harbor command with `--resume`, the same output directory, and matching settings. You can increase `--steps`. Keep the group metrics and checkpoint files. Training saves the sampling key and Adam state in `training.safetensors` and saves the adapter after each update. New collection-only runs save the sampling key in `sampling.safetensors`. Older collection checkpoints remain resumable.
 
 ## Research context
 
-This project builds on Hugging Face's [harness-adapter experiments](https://huggingface.co/blog/harness-hub/harness-adapters) and [harness adapters at scale](https://huggingface.co/blog/harness-adapters-at-scale). It implements their harness-specific training recipe with sequential, on-policy MLX LoRA updates on one Mac. [Upstream attribution and implementation details](docs/methodology.md)
+Harness Hub also studied the recipe at larger scale. [Harness adapters at scale](https://huggingface.co/blog/harness-hub/harness-adapters-at-scale) · [Upstream attribution and implementation details](docs/methodology.md)
 
 Project code is [Apache-2.0](LICENSE). Models and datasets retain their upstream terms. [Third-party notices](THIRD_PARTY_NOTICES)

@@ -1,0 +1,103 @@
+{
+  "overlap_sensitivity": {
+    "overlapping_source_names": [],
+    "excluded_tasks": {
+      "0094_620_94620248_qa_2": {
+        "2510e274a90547f34c7b0db5a4ab70282c2710eb54252f14921bf980b81a928c": [
+          {
+            "split": "breadth",
+            "task": "0017_565_17565404_qa_2"
+          }
+        ]
+      },
+      "0094_620_94620248_qa_3": {
+        "2510e274a90547f34c7b0db5a4ab70282c2710eb54252f14921bf980b81a928c": [
+          {
+            "split": "breadth",
+            "task": "0017_565_17565404_qa_2"
+          }
+        ]
+      },
+      "0076_340_76340399_qa_5": {
+        "1425d9affa78ba8e53afc81d0ef8a19069ee10c4b21fe89b3cf514071b12ee33": [
+          {
+            "split": "breadth",
+            "task": "0024_991_24991983_qa_2"
+          }
+        ]
+      }
+    },
+    "broad_vs_base": {
+      "pairs": 147,
+      "reference_arm": "base",
+      "adapter_arm": "broad",
+      "passes": {
+        "base": 72,
+        "broad": 97
+      },
+      "adapter_only": 32,
+      "reference_only": 7,
+      "joint_passes": 65,
+      "calls_on_joint_passes": {
+        "base": 318,
+        "broad": 268
+      },
+      "timeouts": {
+        "base": 0,
+        "broad": 0
+      },
+      "blocked_calls": {
+        "base": 0,
+        "broad": 0
+      },
+      "pass_rate_change_pp": 17.006802721088434,
+      "joint_tool_call_change_percent": -15.723270440251568,
+      "paired_uncertainty": {
+        "pass_rate_change_pp_ci95": [
+          8.824029611844738,
+          25.0
+        ],
+        "joint_tool_call_change_percent_ci95": [
+          -22.90027817311425,
+          -7.958718758185252
+        ],
+        "bootstrap_resamples": 10000,
+        "bootstrap_unit": "source_dataset",
+        "source_datasets": 91
+      }
+    }
+  },
+  "verifier_outcomes": {
+    "joined_logs": 600,
+    "arms": {
+      "base": {
+        "pass": 72,
+        "wrong_answer": 31,
+        "missing_answer": 47
+      },
+      "local": {
+        "pass": 83,
+        "wrong_answer": 38,
+        "missing_answer": 29
+      },
+      "broad": {
+        "pass": 100,
+        "wrong_answer": 20,
+        "missing_answer": 30
+      },
+      "published": {
+        "pass": 100,
+        "wrong_answer": 15,
+        "missing_answer": 35
+      }
+    }
+  },
+  "task_selection_screening": {
+    "attempts_by_archive": {
+      "lfm3-followup": 64,
+      "lfm3-overnight": 176,
+      "lfm3-breadth": 136
+    },
+    "total_attempts": 376
+  }
+}

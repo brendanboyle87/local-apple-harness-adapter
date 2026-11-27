@@ -11,10 +11,13 @@ pytest.importorskip("openenv")
 
 import mlx.core as mx  # noqa: E402
 import mlx.nn as nn  # noqa: E402
+from mlx.optimizers import Adam  # noqa: E402
+from mlx.utils import tree_flatten  # noqa: E402
 
 from apple_harness_adapter import checkpoint, harbor  # noqa: E402
 from apple_harness_adapter.backends.base import MLXPolicy  # noqa: E402
 from apple_harness_adapter.cli import harbor_run  # noqa: E402
+from apple_harness_adapter.grpo import GRPO  # noqa: E402
 from apple_harness_adapter.trace import Rollout, Turn  # noqa: E402
 
 
@@ -48,6 +51,108 @@ def test_resume_treats_legacy_harbor_runs_as_pi(tmp_path):
     assert checkpoint.prepare_run(tmp_path, config | {"harness": "pi"}, True, None, None) == []
     with pytest.raises(ValueError, match="Resume configuration differs for harness"):
         checkpoint.prepare_run(tmp_path, config | {"harness": "opencode"}, True, None, None)
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+def test_collection_resume_retries_partial_group_without_adam(tmp_path, monkeypatch, legacy):
+    task_source = Path(__file__).resolve().parents[1] / "examples/harbor/write-answer"
+    tasks = [tmp_path / name for name in ("first-task", "second-task")]
+    for task in tasks:
+        copytree(task_source, task)
+
+    async def collect(policy, _args, trials, save_attempt, task):
+        policy.sampling_key, key = mx.random.split(policy.sampling_key)
+        draw = mx.random.randint(0, 1_000_000, key=key).item()
+        correctness = float(task == tasks[0])
+        save_attempt(
+            0,
+            {
+                "draw": draw,
+                "reward": correctness,
+                "efficiency": {"mlx_group_peak_to_date_bytes": 0, "logical_tokens": 6},
+            },
+        )
+        return [Rollout(task.name, (), correctness, 1)]
+
+    def unexpected_trainer(*args, **kwargs):
+        pytest.fail("Collection initialized a trainer")
+
+    monkeypatch.setattr(GRPO, "__init__", unexpected_trainer)
+    monkeypatch.setattr(harbor, "collect_harbor", collect)
+    args = SimpleNamespace(
+        learning_rate=1e-5,
+        max_logprob_drift=0.2,
+        gradient_checkpointing=False,
+        score_block_size=0,
+        output=tmp_path / "continuous",
+        task=tasks,
+        adapter=None,
+        resume=False,
+        steps=3,
+        collect_only=True,
+        safe_agents="enforce",
+    )
+    reference = args.output
+    expected = harbor_run(FixturePolicy(), args)["groups"]
+
+    write = checkpoint._write_committed_json
+
+    def interrupt_commit(path, document):
+        if path.parent.name == "group-0002":
+            raise KeyboardInterrupt
+        write(path, document)
+
+    args.output = tmp_path / "resumed"
+    with monkeypatch.context() as patch:
+        patch.setattr(checkpoint, "_write_committed_json", interrupt_commit)
+        with pytest.raises(KeyboardInterrupt):
+            harbor_run(FixturePolicy(), args)
+    partial = args.output / "group-0002"
+    assert not (partial / "metrics.json").exists()
+    assert (partial / checkpoint.SAMPLING_FILE).is_file()
+
+    first = args.output / "group-0001"
+    if legacy:
+        sampling_file = first / checkpoint.SAMPLING_FILE
+        old_state = mx.load(str(sampling_file))
+        adam = Adam(args.learning_rate)
+        adam.init(FixturePolicy().model.trainable_parameters())
+        old_state.update(tree_flatten(adam.state))
+        mx.save_safetensors(str(first / checkpoint.STATE_FILE), old_state)
+        sampling_file.unlink()
+
+    args.resume = True
+    with pytest.raises(ValueError, match="Resume configuration differs for collect_only"):
+        checkpoint.prepare_run(
+            args.output,
+            checkpoint.read_config(args.output) | {"collect_only": False},
+            True,
+            None,
+            None,
+        )
+    resumed_policy = FixturePolicy()
+    actual = harbor_run(resumed_policy, args)["groups"]
+    assert [group["task"] for group in actual] == ["first-task", "second-task", "first-task"]
+    for key in ("correctness", "efficiency", "updated"):
+        assert [group[key] for group in actual] == [group[key] for group in expected]
+    (abandoned,) = (args.output / "interrupted").iterdir()
+    assert (abandoned / "attempt-01.json").read_bytes() == (
+        partial / "attempt-01.json"
+    ).read_bytes()
+    for index in range(1, 4):
+        group = f"group-{index:04d}"
+        resumed = args.output / group
+        assert (resumed / "attempt-01.json").read_bytes() == (
+            reference / group / "attempt-01.json"
+        ).read_bytes()
+        if legacy and index == 1:
+            continue
+        assert not (resumed / checkpoint.STATE_FILE).exists()
+        state = mx.load(str(resumed / checkpoint.SAMPLING_FILE))
+        assert state.keys() == {"sampling_key"}
+        expected_state = mx.load(str(reference / group / checkpoint.SAMPLING_FILE))
+        assert mx.array_equal(state["sampling_key"], expected_state["sampling_key"]).item()
+    assert mx.array_equal(resumed_policy.sampling_key, state["sampling_key"]).item()
 
 
 @pytest.mark.parametrize("interrupt_at", ["rollout", "commit"])

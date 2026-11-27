@@ -85,17 +85,21 @@ def harbor_run(policy, args) -> dict:
     from harbor.publisher.packager import Packager
 
     from .checkpoint import CHECKPOINT_VERSION, commit_group, lock_run, prepare_run
-    from .grpo import GRPO
     from .harbor import collect_harbor
 
-    trainer = GRPO(
-        policy,
-        args.learning_rate,
-        args.max_logprob_drift,
-        gradient_checkpointing=args.gradient_checkpointing,
-        score_block_size=args.score_block_size,
-    )
-    trainer.optimizer.init(policy.model.trainable_parameters())
+    trainer = optimizer = None
+    if not args.collect_only:
+        from .grpo import GRPO
+
+        trainer = GRPO(
+            policy,
+            args.learning_rate,
+            args.max_logprob_drift,
+            gradient_checkpointing=args.gradient_checkpointing,
+            score_block_size=args.score_block_size,
+        )
+        optimizer = trainer.optimizer
+        optimizer.init(policy.model.trainable_parameters())
     config = {key: value for key, value in vars(args).items() if key != "resume"} | {
         "task": [str(path.resolve()) for path in args.task],
         "task_digests": [Packager.compute_content_hash(path)[0] for path in args.task],
@@ -109,7 +113,7 @@ def harbor_run(policy, args) -> dict:
     if not args.score_block_size:
         config.pop("score_block_size")
     with lock_run(args.output, args.resume):
-        metrics = prepare_run(args.output, config, args.resume, policy, trainer.optimizer)
+        metrics = prepare_run(args.output, config, args.resume, policy, optimizer)
         for step in range(len(metrics), args.steps):
             task = args.task[step % len(args.task)]
             directory = args.output / f"group-{step + 1:04d}"
@@ -143,7 +147,7 @@ def harbor_run(policy, args) -> dict:
                 / 2**30
             )
             update = {"updated": False}
-            if not args.collect_only:
+            if trainer is not None:
                 start = monotonic()
                 mx.reset_peak_memory()
                 update = trainer.update(rollouts) | {
@@ -164,7 +168,7 @@ def harbor_run(policy, args) -> dict:
             }
             if efficiency:
                 result["efficiency"] = efficiency
-            commit_group(directory, result, policy, trainer.optimizer)
+            commit_group(directory, result, policy, optimizer)
             metrics.append(result)
     return {"groups": metrics}
 

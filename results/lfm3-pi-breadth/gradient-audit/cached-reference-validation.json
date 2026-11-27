@@ -1,0 +1,22 @@
+{
+  "attempt": 3,
+  "turn": 3,
+  "completion_tokens": 126,
+  "direct_archive_drift": 0.0,
+  "block_sizes": {
+    "24": {
+      "relative_l2_vs_direct": 0.011175807953648881,
+      "cosine_vs_direct": 0.9999375223762754,
+      "forward_drift": 0.0,
+      "recomputation_drift": 0
+    },
+    "48": {
+      "relative_l2_vs_direct": 0.007853455754558543,
+      "cosine_vs_direct": 0.9999691491720117,
+      "forward_drift": 0.0,
+      "recomputation_drift": 0
+    }
+  },
+  "peak_mlx_gib": 16.113,
+  "seconds": 25.885
+}

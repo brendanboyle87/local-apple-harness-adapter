@@ -1,0 +1,103 @@
+--- a/src/apple_harness_adapter/checkpoint.py
++++ b/src/apple_harness_adapter/checkpoint.py
+@@ -48,2 +47,0 @@
+-    if "harness" in config:
+-        previous.setdefault("harness", "pi")
+--- a/src/apple_harness_adapter/cli.py
++++ b/src/apple_harness_adapter/cli.py
+@@ -105 +104,0 @@
+-        "harness": getattr(args, "harness", "pi"),
+@@ -138 +136,0 @@
+-                "harness": config["harness"],
+@@ -176 +174 @@
+-    harbor = commands.add_parser("harbor", help="collect and train on local Harbor tasks")
++    harbor = commands.add_parser("harbor", help="collect and train on local Harbor tasks using Pi")
+@@ -178 +175,0 @@
+-    harbor.add_argument("--harness", choices=("pi", "opencode"), default="pi")
+@@ -202 +199 @@
+-        help="review harness tool calls with SafeAgents (default: enforce)",
++        help="review Pi tool calls with SafeAgents (default: enforce)",
+@@ -256,4 +252,0 @@
+-
+-
+-if __name__ == "__main__":
+-    main()
+--- a/src/apple_harness_adapter/harbor.py
++++ b/src/apple_harness_adapter/harbor.py
+@@ -1 +1 @@
+-"""Run supported harnesses in offline Harbor containers and collect OpenEnv traces."""
++"""Run native Pi in offline Harbor containers and collect OpenEnv traces."""
+@@ -12 +11,0 @@
+-from harbor.agents.installed.opencode import OpenCode
+@@ -28,8 +27 @@
+-OPENCODE_VERSION = "1.18.30"
+-RELAY_URL = "http://127.0.0.1:18765"
+-PI_RELAY_URL = RELAY_URL
+-DEFAULT_HARNESS = "pi"
+-HARNESSES = {
+-    "pi": "apple_harness_adapter.harbor:OfflinePi",
+-    "opencode": "apple_harness_adapter.harbor:OfflineOpenCode",
+-}
++PI_RELAY_URL = "http://127.0.0.1:18765"
+@@ -79,5 +71 @@
+-class OfflineRelay:
+-    """Use the installed agent's OpenEnv seam over a container-local relay."""
+-
+-    pinned_version: str
+-
++class OfflinePi(InterceptPi):
+@@ -85,5 +73,3 @@
+-        result = await self.exec_as_agent(environment, self.get_version_command())
+-        if result.return_code != 0 or (result.stdout or "").strip() != self.pinned_version:
+-            raise RuntimeError(
+-                f"The task image must preinstall {self.name()} {self.pinned_version}"
+-            )
++        result = await self.exec_as_agent(environment, ". ~/.nvm/nvm.sh; pi --version")
++        if result.return_code != 0 or (result.stdout or "").strip() != PI_VERSION:
++            raise RuntimeError(f"The task image must preinstall Pi {PI_VERSION}")
+@@ -93 +79 @@
+-            raise RuntimeError("The offline harness requires Harbor's Docker backend")
++            raise RuntimeError("Offline Pi requires Harbor's Docker backend")
+@@ -108 +94 @@
+-            raise RuntimeError("The harness requires a Docker container with network mode `none`")
++            raise RuntimeError("Pi requires a Docker container with network mode `none`")
+@@ -127 +113 @@
+-                raise RuntimeError("The harness loopback relay did not start")
++                raise RuntimeError("Pi's loopback relay did not start")
+@@ -134 +120 @@
+-                    raise RuntimeError("The harness loopback relay exited during the rollout")
++                    raise RuntimeError("Pi's loopback relay exited during the rollout")
+@@ -169,20 +154,0 @@
+-
+-
+-class OfflinePi(OfflineRelay, InterceptPi):
+-    pinned_version = PI_VERSION
+-
+-
+-class OfflineOpenCode(OfflineRelay, OpenCode):
+-    pinned_version = OPENCODE_VERSION
+-
+-    async def exec_as_agent(self, environment, command, env=None, cwd=None, timeout_sec=None):
+-        offline_env = {
+-            "OPENCODE_DISABLE_AUTOUPDATE": "1",
+-            "OPENCODE_DISABLE_DEFAULT_PLUGINS": "1",
+-            "OPENCODE_DISABLE_LSP_DOWNLOAD": "1",
+-            "OPENCODE_DISABLE_MODELS_FETCH": "1",
+-            "OPENCODE_DISABLE_AUTOCOMPACT": "1",
+-        }
+-        return await super().exec_as_agent(
+-            environment, command, env=(env or {}) | offline_env, cwd=cwd, timeout_sec=timeout_sec
+-        )
+@@ -224 +189,0 @@
+-    harness = HARNESSES[getattr(args, "harness", DEFAULT_HARNESS)]
+@@ -286 +251 @@
+-                            harness=harness,
++                            harness="apple_harness_adapter.harbor:OfflinePi",
+@@ -289 +254 @@
+-                            intercept_url=RELAY_URL,
++                            intercept_url=PI_RELAY_URL,
+--- a/src/apple_harness_adapter/relay.js
++++ b/src/apple_harness_adapter/relay.js
+@@ -1 +1 @@
+-// Harness loopback HTTP, carried over Docker exec's stdin and stdout.
++// Loopback HTTP for Pi, carried over Docker exec's stdin and stdout.

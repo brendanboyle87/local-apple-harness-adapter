@@ -11,6 +11,7 @@ from mlx.utils import tree_flatten, tree_unflatten
 
 CHECKPOINT_VERSION = 1
 STATE_FILE = "training.safetensors"
+SAMPLING_FILE = "sampling.safetensors"
 
 
 def _write_committed_json(path: Path, document: dict) -> None:
@@ -62,6 +63,7 @@ def prepare_run(output: Path, config: dict, resume: bool, policy, optimizer) -> 
 
     groups = sorted(output.glob("group-[0-9]*"), key=lambda group: int(group.name[6:]))
     metrics = []
+    collect_only = config.get("collect_only", False)
     latest_state = latest_adapter = unfinished = None
     for index, group in enumerate(groups, start=1):
         if group.name != f"group-{index:04d}" or not group.is_dir():
@@ -72,18 +74,26 @@ def prepare_run(output: Path, config: dict, resume: bool, policy, optimizer) -> 
                 raise ValueError(f"Later groups follow the unfinished group at {group}")
             unfinished = group
             break
-        if not (group / STATE_FILE).is_file():
-            raise ValueError(f"Missing training state for completed group at {group}")
+        state_file = group / STATE_FILE
+        if collect_only and (group / SAMPLING_FILE).is_file():
+            state_file = group / SAMPLING_FILE
+        if not state_file.is_file():
+            raise ValueError(f"Missing checkpoint state for completed group at {group}")
         result = json.loads(result_file.read_text(encoding="utf-8"))
         metrics.append(result)
-        latest_state = group / STATE_FILE
+        latest_state = state_file
         if result["updated"]:
+            if collect_only:
+                raise ValueError(f"Unexpected update in collection group at {group}")
             latest_adapter = group / "adapter"
 
     if len(metrics) > config["steps"]:
         raise ValueError("Target steps is less than the number of completed groups")
     if latest_state is not None:
-        _restore_state(latest_state, policy, optimizer, sum(row["updated"] for row in metrics))
+        if collect_only:
+            _restore_sampling_state(latest_state, policy)
+        else:
+            _restore_state(latest_state, policy, optimizer, sum(row["updated"] for row in metrics))
     if latest_adapter is not None:
         policy.load_adapter(latest_adapter)
     if unfinished is not None and len(metrics) < config["steps"]:
@@ -96,22 +106,43 @@ def prepare_run(output: Path, config: dict, resume: bool, policy, optimizer) -> 
 def commit_group(group: Path, result: dict, policy, optimizer) -> None:
     if result["updated"]:
         policy.save(group / "adapter")
-    state = dict(tree_flatten(optimizer.state))
-    state["sampling_key"] = policy.sampling_key
-    mx.save_safetensors(str(group / STATE_FILE), state)
+    state = {"sampling_key": policy.sampling_key}
+    if optimizer is None:
+        mx.save_safetensors(str(group / SAMPLING_FILE), state)
+    else:
+        state.update(tree_flatten(optimizer.state))
+        mx.save_safetensors(str(group / STATE_FILE), state)
     # The atomic metrics rename commits the group after its tensors exist.
     _write_committed_json(group / "metrics.json", result)
 
 
+def _load_sampling_key(path: Path, policy, state: dict) -> mx.array:
+    key = state.pop("sampling_key", None)
+    expected = policy.sampling_key
+    if key is None or key.shape != expected.shape or key.dtype != expected.dtype:
+        raise ValueError(f"Invalid sampling key at {path}")
+    return key
+
+
+def _restore_sampling_state(path: Path, policy) -> None:
+    state = mx.load(str(path))
+    key = _load_sampling_key(path, policy, state)
+    if path.name == STATE_FILE:
+        # Historical collection runs wrote an initialized Adam state at step zero.
+        step = state.get("step")
+        if step is None or step.shape != () or step.item() != 0:
+            raise ValueError(f"Invalid legacy collection checkpoint at {path}")
+    elif state:
+        raise ValueError(f"Unexpected tensors in sampling checkpoint at {path}")
+    policy.sampling_key = key
+
+
 def _restore_state(path: Path, policy, optimizer, updates: int) -> None:
     state = mx.load(str(path))
-    key = state.pop("sampling_key", None)
+    key = _load_sampling_key(path, policy, state)
     expected = dict(tree_flatten(optimizer.state))
     if (
-        key is None
-        or key.shape != policy.sampling_key.shape
-        or key.dtype != policy.sampling_key.dtype
-        or state.keys() != expected.keys()
+        state.keys() != expected.keys()
         or any(
             value.shape != expected[name].shape or value.dtype != expected[name].dtype
             for name, value in state.items()

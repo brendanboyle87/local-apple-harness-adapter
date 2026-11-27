@@ -1,4 +1,4 @@
-"""Sequential, on-policy GRPO with a clipped token-level objective."""
+"""Sequential, single-update, group-relative policy gradients."""
 
 from contextlib import nullcontext
 from math import isfinite

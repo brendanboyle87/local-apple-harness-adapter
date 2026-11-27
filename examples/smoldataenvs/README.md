@@ -34,7 +34,7 @@ uv run --no-sync python examples/smoldataenvs/run.py train \
 
 The commands above reproduce the 14-task baseline schedule. For the recommended checkpoint, prepare the [30-task schedule](breadth.jsonl) with `--split breadth --output runs/smol-breadth-tasks`. Then run the main training command with `--tasks runs/smol-breadth-tasks --output runs/smol-breadth`, using the same warmup adapter. The runner uses 50 groups and seed 1229 for either schedule.
 
-Use the last group containing an `adapter/` directory if a final group skipped its update. The 14-task run took about eight hours and the 30-task run took about seven hours. Both peaked at about 35.5 GiB of MLX memory, plus macOS and Docker memory. Repeat a training command with `--resume` to continue at the last committed group.
+Use the last group containing an `adapter/` directory if a final group skipped its update. The 14-task main run took about eight hours and the 30-task main run took 7.2 hours. Both peaked at about 35.5 GiB in the MLX allocator, with additional headroom needed for macOS and Docker. The frozen schedules let you skip task screening. Repeat a training command with `--resume` to continue at the last committed group. [30-task training budget](../../results/lfm3-pi-breadth/README.md#training-budget)
 
 ## Paired evaluation
 
