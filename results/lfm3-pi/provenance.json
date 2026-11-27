@@ -1,0 +1,237 @@
+{
+  "hardware": {
+    "machine": "Mac Studio",
+    "chip": "Apple M4 Max",
+    "unified_memory_gb": 128,
+    "architecture": "arm64"
+  },
+  "software": {
+    "note": "Host versions and lockfile environment checked on the same Mac at release audit. Pi and task-image packages are recorded in the original experiment configuration.",
+    "python": "3.12.15",
+    "macos": "26.6.2",
+    "docker_engine": "29.2.1",
+    "pi": "1.5.2",
+    "task_image_python_packages": [
+      "numpy==2.2.6",
+      "pandas==2.3.3",
+      "scipy==1.15.3",
+      "scikit-learn==1.7.2",
+      "openpyxl==3.1.5",
+      "math-verify==0.8.0"
+    ],
+    "mlx": {
+      "version": "0.32.4"
+    },
+    "mlx-lm": {
+      "version": "0.32.3.dev28+ge2b5bbd3b",
+      "revision": "e2b5bbd3bd9d186dea895e60802aa765e70b9d93"
+    },
+    "harbor": {
+      "version": "0.25.0"
+    },
+    "openenv": {
+      "version": "0.14.1.dev0",
+      "revision": "3659dc73eb8114724209e642eee749cd94348ce3"
+    },
+    "safeagents": {
+      "version": "0.0.1",
+      "revision": "dcf38e0a911d6e6a53966d46ecf1d9d6b86e3c01"
+    },
+    "atif-scan": {
+      "version": "0.8.24"
+    },
+    "huggingface-hub": {
+      "version": "2.4.0"
+    }
+  },
+  "dataset": {
+    "repo": "FineEnvs/SmolDataEnvs-harbor-train",
+    "revision": "588744be728257abfb8d4984ec8fab2acbd1f7e1",
+    "historical_offline_base_image_id": "sha256:5bc03c9f9729b400dd35dbbb4d15457342c8072964e121a32c617a37ff9ef5b4",
+    "historical_environment": {
+      "platform": "linux/arm64",
+      "network_mode": "no-network",
+      "cpus": 2,
+      "memory_mb": 2048,
+      "agent_timeout_seconds": 150,
+      "verifier_timeout_seconds": 30
+    }
+  },
+  "training": {
+    "warmup": {
+      "backend": "lfm3",
+      "model": "LiquidAI/LFM3-1.7B-MLX-bf16",
+      "revision": "52041852d5b5c59bfe120c075d2744ab97959d91",
+      "rank": 32,
+      "seed": 81,
+      "temperature": 0.8,
+      "attempts": 8,
+      "learning_rate": 1e-05,
+      "max_logprob_drift": 0.2,
+      "steps": 3,
+      "gradient_checkpointing": false,
+      "reward_key": "correctness,reward",
+      "safe_agents": "enforce",
+      "max_turns": 10,
+      "max_output": 1024,
+      "max_context": 6144,
+      "effort": "low",
+      "checkpoint_version": 1,
+      "task_digests": [
+        "58174aa2008b6b7a02334f3435a0b33aa5aa4aeae0f703c435a9eebbad96f89e",
+        "9ae14b5149543636cbbaf7d72f994c1c9803ea54e01a844e0247cd2db9bf7c12"
+      ],
+      "harness": "pi",
+      "score_block_size": 0,
+      "task_schedule_cycle": [
+        "0001_864_1864781_qa_3",
+        "0019_521_19521236_qa_3"
+      ],
+      "dataset_selection_seed": 8112026,
+      "calibration_seed": 42,
+      "wall_seconds": 1149.4
+    },
+    "main": {
+      "backend": "lfm3",
+      "model": "LiquidAI/LFM3-1.7B-MLX-bf16",
+      "revision": "52041852d5b5c59bfe120c075d2744ab97959d91",
+      "rank": 32,
+      "seed": 1229,
+      "temperature": 0.8,
+      "attempts": 8,
+      "learning_rate": 1e-05,
+      "max_logprob_drift": 0.2,
+      "steps": 50,
+      "gradient_checkpointing": false,
+      "reward_key": "correctness,reward",
+      "safe_agents": "enforce",
+      "max_turns": 10,
+      "max_output": 1024,
+      "max_context": 6144,
+      "effort": "low",
+      "checkpoint_version": 1,
+      "task_digests": [
+        "4df47df6c34d4259350ef1474635aa86f42a1b3cbe64f32b25d73afe0f8914f5",
+        "ca3b8d5d7be658119c81d57334d0e7ed1eff43a9c6425b1cce8fafbb436067d0",
+        "8f728a58d338994b46f8dfd6f1246771f83fe61014ce00f63c57d6ad9048a63b",
+        "db437009b4afd21cafdddbac45361d151c2ac8885b2a455d6f84b7b865a8cb5d",
+        "c6ac0c3f39cbeaac7822e98acd8719df3575a6d0399bdad4ee66b103b267b43f",
+        "2ba8cf75f3e3102e72d1394038dd16eafabdc58a2b94aef3c47bfaeb02684050",
+        "1cc3777311573995d78309dcb2cc87b71fbcc6b3261ee3b497b73311fe908f56",
+        "fa3cca62013e69f92d0ac6e903cdf84c5a84344068585351b4a6da5406b15cf0",
+        "a3a491570f4073fbfd8faa47b74d734ce9e106db33d63c01d2bbe1357801273c",
+        "0c67896a8a1b7ed1ed390db12bc49427158cfcb7997f2566589c6e4ddf5be0b0",
+        "00b95af204f9a671dc3bf61bf459066fcc1891cf6645a4084a20925e61cbd8bb",
+        "561928855c2a22d69980acb8e61ef6c1be1efe4f7f04a9aa6de371e102044429",
+        "8accf75054bbc1b7736d090c2b6b85929193ad7cc07470e80bab854180933130",
+        "4a5b70f9e1f220a4fba1ca86341d11bb180edcb4b241492e5319363041523cab"
+      ],
+      "harness": "pi",
+      "score_block_size": 0,
+      "task_schedule_cycle": [
+        "0000_806_806826_qa_3",
+        "0001_633_1633600_qa_4",
+        "0001_289_1289812_qa_4",
+        "0001_234_1234901_qa_5",
+        "0024_675_24675509_qa_4",
+        "0024_471_24471564_qa_5",
+        "0001_661_1661005_qa_3",
+        "0017_565_17565404_qa_2",
+        "0002_350_2350400_qa_3",
+        "0001_636_1636611_qa_2",
+        "0029_908_29908654_qa_4",
+        "0021_193_21193214_qa_3",
+        "0022_272_22272220_qa_3",
+        "0010_391_10391673_qa_1"
+      ],
+      "dataset_selection_seed": 8112028,
+      "calibration_seed_start": 1231,
+      "initial_adapter_sha256": "55487d9815356aa515349b54f3319b31058cef97fef5c7b9249345132e5adedc",
+      "training_phase_started_utc": "2026-11-26T01:14:38.429597+00:00",
+      "post_training_preflight_utc": "2026-11-26T09:08:05.251840+00:00",
+      "training_phase_wall_seconds": 28406.822,
+      "committed_collection_seconds": 15997.04,
+      "committed_optimization_seconds": 12396.12,
+      "calibration_candidates_staged": 64,
+      "calibration_candidates_attempted": 44,
+      "calibration_attempts_per_task": 4,
+      "calibration_tasks_qualified": 14
+    }
+  },
+  "evaluation": {
+    "model": "LiquidAI/LFM3-1.7B-MLX-bf16",
+    "revision": "52041852d5b5c59bfe120c075d2744ab97959d91",
+    "rank": 32,
+    "lora_alpha": 64,
+    "temperature": 0.8,
+    "max_turns": 10,
+    "max_output": 1024,
+    "max_context": 6144,
+    "eval_seed_start": 7297,
+    "heldout_tasks": 150,
+    "rollouts_per_task_per_arm": 1,
+    "agent_timeout_seconds": 150,
+    "harness": "pi",
+    "safe_agents": "enforce",
+    "effort": "low",
+    "reward_key": "correctness,reward",
+    "verifier_timeout_seconds": 30,
+    "selection_seed": 8112029,
+    "difficulty_counts": {
+      "medium": 107,
+      "easy": 43
+    },
+    "source_datasets": 93,
+    "bootstrap_seed": 8921,
+    "bootstrap_resamples": 10000,
+    "order": "Cycle through all six permutations of base, published, local.",
+    "wall_seconds_all_arms": 13312.1,
+    "published_adapter": {
+      "repo": "harness-hub/LFM3-1.7B-pi",
+      "revision": "6b15c1c0b2db4e573dbe3a07e73655873be8fca0",
+      "tensors": 306,
+      "sha256": "40e147149151301b6bb993f1c44ec19f08374275f1cfa48a1fceff0358009d20",
+      "converted_mlx_sha256": "b5497a5b7e4ba7cd0f6c0eedcc3a7a08e95100e094dcefa84a78c8136d64add2"
+    }
+  },
+  "evaluated_local_adapter": {
+    "training_group": 50,
+    "optimizer_step": 41,
+    "tensors": 306,
+    "sha256": {
+      "adapters.safetensors": "22f2ccf4ac0c8b9b0f8d7216cfec504fd512a7ccabbf807408122c2c44d28a6e",
+      "adapter_config.json": "6b7110b8256da985f9416ad22987f88c10563fa157760d7064d2490546d6a8dd",
+      "adapter_metadata.json": "2958e280314ab0efc66d58b62f3762a006be024ec39d7340adc7e210f3dfcd21"
+    }
+  },
+  "historical_engine_files_sha256": {
+    "apple_harness_adapter/__init__.py": "8ff313f00484cc2618f03eb020c496d76d35fee1bc0e5f30924ea9660881a2cc",
+    "apple_harness_adapter/backends/__init__.py": "df4e976e01ac732f8448ff3f1861767cc7917f27b5d9db5577a6f4e3f2b79ae7",
+    "apple_harness_adapter/backends/base.py": "c308ed4bd7b131585a95b2d1fa02be94dd70fb9bcf707b08d581a98cf951aeed",
+    "apple_harness_adapter/backends/inkling.py": "9c8484f1aa99f35b333319c575626e13108914dd216817dfc5f873c351f441e2",
+    "apple_harness_adapter/backends/inkling_chat.py": "95cdcbd9970390634cda07bf213e701119aa41b9bc0cc4073bf52caa777514b7",
+    "apple_harness_adapter/backends/inkling_score.py": "ec0ebecd2b58780fb87f47b17ef0905e9415051e1bd451c35f3abcf5b126d3f7",
+    "apple_harness_adapter/backends/lfm3.py": "dfa35646ce013a83cf2d66f204ab5c9d1ef6d2fa2d95255d1a34bc382682c5e4",
+    "apple_harness_adapter/backends/lfm3_model.py": "4aa081492a90c1e1878895c4e3534236c50a79e58e45da83df5a8b4840e916b4",
+    "apple_harness_adapter/backends/qwen3.py": "d83e35a28c2a2a0e1f3537ff140969c7c040632b43245efe060c18dff453fbad",
+    "apple_harness_adapter/checkpoint.py": "4381eccfa50efc7da17dd1186b64cc4bac74c401eea2f603f9208f86d27c6587",
+    "apple_harness_adapter/cli.py": "7252829046666a3f254d4531a52556f5a611326fe26eba7084a888d06d19ca77",
+    "apple_harness_adapter/endpoint.py": "1c2b88a512857a0a6f8fb5dfc208c154387ae74d2542160e0d60c6ffe0809fd4",
+    "apple_harness_adapter/grpo.py": "f1cac47dd122b91a736cd07040c9a458277e3fc168082025ff525548851d3b72",
+    "apple_harness_adapter/harbor.py": "a0c5d9bcb181b7041c6d2f805bdb538a23d774419ca976add597ce7f66700089",
+    "apple_harness_adapter/policy.py": "0e35de5027b7e7fb730f2c1e439ba58b0dada26af91c28edf16a217b4950ab7d",
+    "apple_harness_adapter/relay.js": "2d07b81bdae4465146569b1ce03c3959b8bb902ebe5e4e7f14d0ba77d481fd19",
+    "apple_harness_adapter/safe_agents.py": "72b2f0687633443793040e38fcf0a74201df612d88d3165cbc8e2956c455b458",
+    "apple_harness_adapter/trace.py": "19df94db3b23a8727e6849c316e3d129c47bf3ba3bf99a82893e67fc87b21a79"
+  },
+  "original_artifacts_sha256": {
+    "lfm3-150/evaluation/pairs.json": "e0c9462d598743df5b3cd49677ea8b56e6c39b5c5e84de258340aa965ca8d390",
+    "lfm3-150/evaluation/summary.json": "10d8bd365f733e443c5384ae5cc4367a56abb5023e5f19cb7be158de38c9de6d",
+    "lfm3-150/plan.json": "ab513fd7a3db7a391b45ef10b028dc7fb89795c6a25d2fc309d223679055c54e",
+    "lfm3-overnight/training/config.json": "fb96b5f484db41b388c369d9ea56834198a85a0f1e5dec89bd2cf033bd987a45",
+    "lfm3-overnight/training-summary.json": "03fb33e6da4d8f8c446e04183d4f736cded955cb390258ba486b8632b06cd874",
+    "lfm3-overnight/training-schedule.json": "66e2d5bea79db21afea6407e79f138d45d016890391eae36d12a5d7576e2f1f8",
+    "lfm3-repro/bf16-train/config.json": "9207a63c288572cd68f7c58531ce403a2a9ae68fd716d2ad63b00dc0ee1d2aba",
+    "lfm3-repro/bf16-training-summary.json": "cd8f98f44bfbc1d1b7254a5783b111181c058a6214fb9395a10b89ca736da926"
+  }
+}

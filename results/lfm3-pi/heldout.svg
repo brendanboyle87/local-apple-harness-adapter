@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="394" viewBox="0 0 760 394" role="img" aria-labelledby="title description" font-family="system-ui, -apple-system, sans-serif">
+<title id="title">Held-out evaluation</title>
+<desc id="description">Base passed 72 of 150 tasks and the local adapter passed 83. The accuracy confidence interval crosses zero. The joint-success tool-call interval favors the adapter.</desc>
+<rect x="0.00" y="0.00" width="760.00" height="394.00" rx="0" fill="#ffffff"/>
+<text x="28" y="34" font-size="21" fill="#1b2d3e" text-anchor="start" font-weight="700">Held-out evaluation</text>
+<text x="28" y="56" font-size="13" fill="#48596a" text-anchor="start" font-weight="400">150 tasks · 93 source datasets · LFM3 BF16 + Pi</text>
+<text x="28" y="91" font-size="15" fill="#1b2d3e" text-anchor="start" font-weight="650">Task completion</text>
+<line x1="133.00" y1="107.00" x2="133.00" y2="174.00" stroke="#d7e0e7" stroke-width="1"/>
+<text x="133" y="193" font-size="11" fill="#48596a" text-anchor="middle" font-weight="400">0%</text>
+<line x1="278.25" y1="107.00" x2="278.25" y2="174.00" stroke="#d7e0e7" stroke-width="1"/>
+<text x="278" y="193" font-size="11" fill="#48596a" text-anchor="middle" font-weight="400">25%</text>
+<line x1="423.50" y1="107.00" x2="423.50" y2="174.00" stroke="#d7e0e7" stroke-width="1"/>
+<text x="424" y="193" font-size="11" fill="#48596a" text-anchor="middle" font-weight="400">50%</text>
+<line x1="568.75" y1="107.00" x2="568.75" y2="174.00" stroke="#d7e0e7" stroke-width="1"/>
+<text x="569" y="193" font-size="11" fill="#48596a" text-anchor="middle" font-weight="400">75%</text>
+<line x1="714.00" y1="107.00" x2="714.00" y2="174.00" stroke="#d7e0e7" stroke-width="1"/>
+<text x="714" y="193" font-size="11" fill="#48596a" text-anchor="middle" font-weight="400">100%</text>
+<text x="28" y="129" font-size="13" fill="#1b2d3e" text-anchor="start" font-weight="400">Base</text>
+<rect x="133.00" y="112.00" width="278.88" height="23.00" rx="3" fill="#71839a"/>
+<text x="421" y="129" font-size="12" fill="#1b2d3e" text-anchor="start" font-weight="600">72/150 · 48.0%</text>
+<text x="28" y="160" font-size="13" fill="#1b2d3e" text-anchor="start" font-weight="400">Local adapter</text>
+<rect x="133.00" y="143.00" width="321.49" height="23.00" rx="3" fill="#146460"/>
+<text x="463" y="160" font-size="12" fill="#1b2d3e" text-anchor="start" font-weight="600">83/150 · 55.3%</text>
+<line x1="28.00" y1="210.00" x2="733.00" y2="210.00" stroke="#d7e0e7" stroke-width="1"/>
+<text x="28" y="236" font-size="15" fill="#1b2d3e" text-anchor="start" font-weight="650">Local adapter change (paired 95% confidence intervals)</text>
+<line x1="235.00" y1="254.00" x2="235.00" y2="330.00" stroke="#d7e0e7" stroke-width="1"/>
+<text x="235" y="347" font-size="11" fill="#48596a" text-anchor="middle" font-weight="400">−40</text>
+<line x1="364.00" y1="254.00" x2="364.00" y2="330.00" stroke="#d7e0e7" stroke-width="1"/>
+<text x="364" y="347" font-size="11" fill="#48596a" text-anchor="middle" font-weight="400">−20</text>
+<line x1="493.00" y1="254.00" x2="493.00" y2="330.00" stroke="#95a5b3" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="493" y="347" font-size="11" fill="#48596a" text-anchor="middle" font-weight="400">0</text>
+<line x1="622.00" y1="254.00" x2="622.00" y2="330.00" stroke="#d7e0e7" stroke-width="1"/>
+<text x="622" y="347" font-size="11" fill="#48596a" text-anchor="middle" font-weight="400">20</text>
+<text x="28" y="278" font-size="12" fill="#1b2d3e" text-anchor="start" font-weight="400">Task completion (pp)</text>
+<line x1="484.68" y1="274.00" x2="594.84" y2="274.00" stroke="#146460" stroke-width="3"/>
+<line x1="484.68" y1="269.00" x2="484.68" y2="279.00" stroke="#146460" stroke-width="2"/>
+<line x1="594.84" y1="269.00" x2="594.84" y2="279.00" stroke="#146460" stroke-width="2"/>
+<circle cx="540.30" cy="274.00" r="4.5" fill="#146460"/>
+<text x="630" y="278" font-size="11" fill="#1b2d3e" text-anchor="start" font-weight="600">+7.3 [−1.29, +15.79]</text>
+<text x="28" y="315" font-size="12" fill="#1b2d3e" text-anchor="start" font-weight="400">Shared-success tool calls (%)</text>
+<line x1="306.52" y1="311.00" x2="403.69" y2="311.00" stroke="#146460" stroke-width="3"/>
+<line x1="306.52" y1="306.00" x2="306.52" y2="316.00" stroke="#146460" stroke-width="2"/>
+<line x1="403.69" y1="306.00" x2="403.69" y2="316.00" stroke="#146460" stroke-width="2"/>
+<circle cx="352.48" cy="311.00" r="4.5" fill="#146460"/>
+<text x="630" y="315" font-size="11" fill="#1b2d3e" text-anchor="start" font-weight="600">−21.8 [−28.91, −13.85]</text>
+<text x="28" y="374" font-size="12" fill="#48596a" text-anchor="start" font-weight="400">Tool calls are counted on the 59 tasks both arms passed.</text>
+</svg>

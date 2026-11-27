@@ -1,47 +1,64 @@
 # Local Apple Harness Adapter
 
-Train and evaluate LoRA adapters on Apple Silicon with MLX, Harbor verifiers, and a real agent harness. Choose **Pi** or **OpenCode** for rollouts and **LFM3**, **Qwen3**, or **Inkling** for the model.
+Train a LoRA adapter for a specific agent harness on an Apple Silicon Mac. The project runs online reinforcement learning with native MLX inference and training, real Pi or OpenCode sessions, and Harbor tasks with executable verifiers. After downloading the model and preparing the tasks, you can train locally without renting GPUs or paying for inference APIs.
+
+## Results
+
+One **LFM3-1.7B BF16 + Pi** run on an **M4 Max Mac Studio with 128 GB of unified memory** took about **8 hours** for main training and peaked at **35.5 GiB of MLX memory**. Main training used **14 tasks** after warmup, with **400 rollouts** and **41 optimizer updates across 50 groups**. Held-out evaluation covered **150 tasks from 93 source datasets**.
+
+| Metric | Base | Local adapter |
+| --- | ---: | ---: |
+| Held-out tasks passed | 72/150 | 83/150 |
+| Task completion | 48.0% | 55.3% |
+| Tool calls on shared successes | 280 | 219 |
+
+Task completion increased by **7.3 percentage points** (95% CI **−1.29 to +15.79 points**). This interval includes zero. On the **59 tasks both arms passed**, the local adapter used **21.8% fewer tool calls** (95% CI for the signed change **−28.91% to −13.85%**). The tool-call result measures invocations. Inference tokens, latency, and total compute cost are separate quantities.
+
+![Base and local adapter completion rates with paired bootstrap intervals for completion and shared-success tool calls](results/lfm3-pi/heldout.svg)
+
+[Experimental evidence and statistics](results/lfm3-pi/README.md) · [Methodology and limitations](docs/methodology.md)
+
+## Supported configurations
+
+| Configuration | Evidence |
+| --- | --- |
+| LFM3-1.7B BF16 + Pi | Empirically validated configuration for the results above |
+| OpenCode | Implemented harness integration with a Docker-backed tool and trace test |
+| Qwen3 | Implemented model backend with local pilot training updates and zero passes in both arms of a 24-task coding pilot |
+| Inkling 2 Mini | Experimental model backend with local training rehearsals and a cached backward pass |
 
 ## Install
 
-Use an Apple Silicon Mac with [uv](https://docs.astral.sh/uv/) and Docker Desktop running.
+Use an Apple Silicon Mac with [uv](https://docs.astral.sh/uv/) and Docker Desktop running. Run from the repository root.
 
 ```sh
 uv sync --locked --python 3.12 --extra apple --extra harbor
 ```
 
-The first run downloads the pinned model and builds the task image. Inference and training run on your Mac. Harbor trials use ARM64 containers with networking disabled. Before loading a model, check memory pressure with `memory_pressure -Q` and check for other model workloads, including weights held by idle servers.
+The first run downloads the pinned model and builds the task image. Rollouts run in ARM64 containers with networking disabled. Before loading a model, run `memory_pressure -Q`, check for trainers and model weights held by local inference servers, and leave headroom for macOS and Docker. Run one model workload at a time.
 
-## Try Pi or OpenCode
+## Quick start
 
-Run these one at a time from the repo root. Each command gives the harness a file-writing task and records its tools, sampled tokens, and verifier score.
+Run a file-writing task with Pi. Inspect `runs/pi-smoke/group-0001/metrics.json` for the verifier score and tool-call count.
 
 ```sh
 uv run --no-sync apple-harness --backend lfm3 harbor --harness pi \
   --task examples/harbor/write-answer --attempts 1 --collect-only \
   --effort low --max-output 768 --output runs/pi-smoke
-
-uv run --no-sync apple-harness --backend lfm3 harbor --harness opencode \
-  --task examples/harbor/write-answer-opencode --attempts 1 --collect-only \
-  --effort low --max-context 6144 --max-output 768 --output runs/opencode-smoke
 ```
 
-A passing verifier writes `correctness: [1.0]` to the group's `metrics.json`. Run `uv run --no-sync apple-harness --backend lfm3 smoke` for a quick LoRA backward-pass check.
+To try OpenCode, use `--harness opencode --task examples/harbor/write-answer-opencode` in place of the Pi harness and task arguments, add `--max-context 6144`, and use a fresh output directory. For a small sampling and LoRA backward-pass check, run `uv run --no-sync apple-harness --backend lfm3 smoke`.
 
-## Train and evaluate
+## Train, evaluate, and resume
 
-Follow the [SmolDataEnvs recipe](examples/smoldataenvs/README.md) for a seeded training pilot, the longer run, and paired held-out evaluation. It fetches public inputs and checks them against the manifests in this repo.
+Use the [SmolDataEnvs recipe](examples/smoldataenvs/README.md) for a one-group pilot, the full training schedule, and paired evaluation. The recipe pins the model and task manifests and verifies the downloaded inputs.
 
-For your own data, pass `--task PATH` for each local Harbor task and `--steps N` for the number of rollout groups. A task needs an instruction, a `no-network` ARM64 image or Dockerfile with Pi 1.5.2 or OpenCode 1.18.30 installed, and a verifier that emits a score from 0 to 1. The bundled task directories show the layout. SafeAgents reviews tool calls by default.
+- **Train.** Pass one or more `--task PATH` arguments and set `--steps N` for the number of rollout groups. Omit `--collect-only` and use multiple attempts per group. Equal effective rewards skip the update. Each Harbor task needs an instruction, a verifier that emits a score from 0 to 1, and a `no-network` ARM64 image or Dockerfile with Pi 1.5.2 or OpenCode 1.18.30. SafeAgents reviews tool calls by default.
+- **Evaluate.** Use `--collect-only` for both arms and match held-out tasks, seeds, harness, model, and rollout limits. Add `--adapter PATH` to the adapter arm. The example runner handles pairing, arm order, and the summary.
+- **Resume.** After the previous trainer exits, repeat the training command with `--resume`, the same output directory, and matching settings. You can increase `--steps`. Keep the group metrics, adapter directories, and `training.safetensors` files so the runner can restore the latest committed adapter, Adam state, and sampling key.
 
-- **Train.** Omit `--collect-only` and use multiple attempts per group. A group with varied effective rewards can write an adapter. Equal rewards skip the update.
-- **Evaluate.** Use `--collect-only` with the same held-out tasks, harness, model, seeds, and limits for both arms. Add `--adapter PATH` to the adapter arm.
-- **Resume.** Repeat the training command with `--resume` and the same output directory and settings. You can raise `--steps`. The runner restores adapter weights, Adam state, and the sampling key from the last complete group.
+## Research context
 
-Each group saves `metrics.json`, rollout and verifier traces, and, for an updated group, `adapter/`. Keep the run directory and `training.safetensors` to resume.
+This project builds on Hugging Face's [harness-adapter experiments](https://huggingface.co/blog/harness-hub/harness-adapters) and [harness adapters at scale](https://huggingface.co/blog/harness-adapters-at-scale). It implements their harness-specific training recipe with sequential, on-policy MLX LoRA updates on one Mac. [Upstream attribution and implementation details](docs/methodology.md)
 
-## Validation
-
-A local LFM3/Pi run on an M4 Max applied 41 updates across 50 groups at a peak of **35.5 GiB of MLX memory**. Its adapter used **22% fewer tool calls** on shared successes in a 150-task held-out evaluation. The accuracy gain was **+7.3 points**, with a 95% interval spanning zero. See the [recorded results](examples/smoldataenvs/observed.json).
-
-Code is [Apache-2.0](LICENSE). Models and datasets retain their upstream terms.
+Project code is [Apache-2.0](LICENSE). Models and datasets retain their upstream terms. [Third-party notices](THIRD_PARTY_NOTICES)
